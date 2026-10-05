@@ -87,7 +87,7 @@ Debug mode              on or off
 ```
 
 - The pane takes the keyboard when it opens over an empty prompt, with Global configuration selected.
-- Tab and the arrow keys move between items. Enter opens a page or turns Debug mode on or off. Each page starts with a Back button.
+- Tab and the arrow keys move between items. Enter opens a page or turns Debug mode on or off. Each page starts with a Back button, and Enter on a two-option setting such as `● 5m  ○ 1h` switches it.
 - Escape closes the pane when the pane has focus, or when the prompt is idle and empty.
 - A line below the menu shows the next refresh, or why warming stopped.
 

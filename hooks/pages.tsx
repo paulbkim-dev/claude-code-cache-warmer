@@ -1,6 +1,6 @@
 import type { ElementTable } from "claude-code";
 
-import type { Totals, Ttl } from "../types";
+import type { Totals } from "../types";
 import type { Mascot, PaneActions, PaneData } from "./pane";
 import { headerOf, mainPageOf, statusTextOf, tableOf } from "./pane";
 import {
@@ -14,21 +14,23 @@ import {
 
 const TTLS = ["5m", "1h"] as const;
 
-const ttlButtonsOf = (
+// One button for a two-way choice: it marks the current option and a press picks the other.
+const toggleOf = <T extends string | boolean>(
   { Button }: ElementTable,
-  prefix: string,
-  chosen: Ttl,
-  choose: (value: Ttl) => void,
-) =>
-  TTLS.map((value) => (
-    <Button
-      key={`${prefix}:${value}`}
-      label={value}
-      variant={value === chosen ? "primary" : undefined}
-      dimColor={value !== chosen}
-      onPress={() => choose(value)}
-    />
-  ));
+  key: string,
+  options: readonly [T, T],
+  labelOf: (value: T) => string,
+  current: T,
+  choose: (value: T) => void,
+) => (
+  <Button
+    key={`toggle:${key}`}
+    label={options
+      .map((value) => `${value === current ? "●" : "○"} ${labelOf(value)}`)
+      .join("  ")}
+    onPress={() => choose(options[0] === current ? options[1] : options[0])}
+  />
+);
 
 const GLOBAL_LABELS = {
   default: "Default lifetime",
@@ -54,21 +56,25 @@ const globalPageOf = (
       {headerOf(elements, "Global configuration", actions.open)}
       <Box key="default" flexDirection="row">
         {label(GLOBAL_LABELS.default)}
-        {ttlButtonsOf(elements, "default", saved, actions.chooseDefault)}
+        {toggleOf(
+          elements,
+          "default",
+          TTLS,
+          String,
+          saved,
+          actions.chooseDefault,
+        )}
       </Box>
       <Box key="band" flexDirection="row">
         {label(GLOBAL_LABELS.band)}
-        {[true, false].map((value) => (
-          <Button
-            key={`band:${value ? "on" : "off"}`}
-            label={value ? "on" : "off"}
-            variant={value === isBandShown ? "primary" : undefined}
-            dimColor={value !== isBandShown}
-            onPress={() => {
-              if (value !== isBandShown) actions.toggleBand();
-            }}
-          />
-        ))}
+        {toggleOf(
+          elements,
+          "band",
+          [true, false],
+          (value) => (value ? "on" : "off"),
+          isBandShown,
+          actions.toggleBand,
+        )}
       </Box>
       {TTLS.map((ttl) => (
         <Box key={`idle:${ttl}`} flexDirection="row">
@@ -113,7 +119,7 @@ const sessionPageOf = (
         {isLocked ? (
           <Text bold>{chosen}</Text>
         ) : (
-          ttlButtonsOf(elements, "ttl", chosen, actions.chooseSession)
+          toggleOf(elements, "ttl", TTLS, String, chosen, actions.chooseSession)
         )}
         {isLocked && (
           <Text dimColor>{"  locked: /clear or a new session unlocks it"}</Text>

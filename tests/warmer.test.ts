@@ -147,9 +147,9 @@ test("the command saves the lifetime and sets the variable; the Session page cha
   expect(envSets.at(-1)).toEqual(["CLAUDE_CODE_PROMPT_CACHE_TTL", "1h"]);
   const pane = await mountPane($, "terminal");
   await pane.press({ key: "menu:session" });
-  await pane.press({ key: "ttl:5m" });
+  await pane.press({ key: "toggle:ttl" });
   expect(envSets.at(-1)).toEqual(["CLAUDE_CODE_PROMPT_CACHE_TTL", "5m"]);
-  await pane.press({ key: "ttl:1h" });
+  await pane.press({ key: "toggle:ttl" });
   expect(configSets).toEqual(["1h"]);
   expect(
     await pane.find({ text: "Refreshes every 54m · idle limit 5 refreshes" }),
@@ -182,7 +182,7 @@ test("the first response locks the session's lifetime until /clear; the command 
   expect(
     await locked.find({ text: "  locked: /clear or a new session unlocks it" }),
   ).toBeDefined();
-  expect(await locked.find({ key: "ttl:1h" })).toBeUndefined();
+  expect(await locked.find({ key: "toggle:ttl" })).toBeUndefined();
   await locked.unmount();
   await $.session.end({
     reason: "clear",

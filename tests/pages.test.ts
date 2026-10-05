@@ -82,10 +82,10 @@ test("the Global page saves the default lifetime even when locked; this session 
   await prompt($, "t1");
   const pane = await mountPane($, "terminal");
   await pane.press({ key: "menu:global" });
-  await pane.press({ key: "default:1h" });
+  await pane.press({ key: "toggle:default" });
   expect(configSets).toEqual(["1h"]);
-  expect(await pane.find({ key: "default:1h" })).toMatchObject({
-    props: { variant: "primary" },
+  expect(await pane.find({ key: "toggle:default" })).toMatchObject({
+    props: { label: "○ 5m  ● 1h" },
   });
   // /config saves it too, without the refusal 0.5 gave.
   const answer = await $.config.set({
@@ -100,7 +100,7 @@ test("the Global page saves the default lifetime even when locked; this session 
   // /clear starts a new session, which takes the saved default; unlocked, a new default applies at once.
   await $.session.end(clear);
   expect(envSets.at(-1)).toEqual(["CLAUDE_CODE_PROMPT_CACHE_TTL", "1h"]);
-  await pane.press({ key: "default:5m" });
+  await pane.press({ key: "toggle:default" });
   expect(envSets.at(-1)).toEqual(["CLAUDE_CODE_PROMPT_CACHE_TTL", "5m"]);
   await pane.unmount();
 });

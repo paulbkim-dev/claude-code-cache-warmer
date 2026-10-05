@@ -33,7 +33,7 @@ test("turning the band off on the Global page saves it and leaves the engine's b
   await toggle($);
   const pane = await mountPane($, "terminal");
   await pane.press({ key: "menu:global" });
-  await pane.press({ key: "band:off" });
+  await pane.press({ key: "toggle:band" });
   expect(configSets).toEqual([false]);
   await pane.unmount();
   await runPreview($);
