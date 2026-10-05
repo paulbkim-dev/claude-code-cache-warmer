@@ -2,6 +2,7 @@ import type { ElementTable, RenderElement } from "claude-code";
 
 import type {
   AllTime,
+  BandStyle,
   IdleLimits,
   Mood,
   Notice,
@@ -15,12 +16,13 @@ import { MASCOT_COLUMNS, MASCOT_ROWS } from "./mascot";
 import { delayOf, formatDuration, formatTokens, formatUsd } from "./warmer";
 
 export const MASCOT_KEY = "mascot";
-const REPOSITORY = "https://github.com/paulbkim-dev/claude-code-cache-warmer";
+// Plain text, which terminals link themselves: a Link where OSC 8 is unsupported draws its label and then the URL.
+const REPOSITORY = "github.com/paulbkim-dev/claude-code-cache-warmer";
 // Clawd stands left of the main page's column when this many columns stay beside him, and above it in a narrower pane.
 const SIDE_COLUMNS = 30;
 const SIDE_GAP = 2;
-// The main page's column above its status line: two header rows, a blank row and four menu items.
-const MENU_ROWS = 7;
+// The main page's column above its status line besides the repository line: two header rows, a blank row and three menu items.
+const MENU_ROWS = 6;
 const COLUMN_GAP = "  ";
 
 export type PaneData = {
@@ -32,7 +34,7 @@ export type PaneData = {
   isForced: boolean;
   isLocked: boolean;
   isDebug: boolean;
-  isBandShown: boolean;
+  bandStyle: BandStyle;
   state: Status;
   totals: Totals;
   allTime: AllTime;
@@ -46,7 +48,7 @@ export type PaneData = {
 export type PaneActions = {
   open: (page: Page) => void;
   toggleDebug: () => void;
-  toggleBand: () => void;
+  setBand: (value: BandStyle) => void;
   chooseDefault: (value: Ttl) => void;
   chooseSession: (value: Ttl) => void;
   setLimit: (ttl: Ttl, count: number) => void;
@@ -94,7 +96,7 @@ export const tableOf = (rows: string[][], isLeft: boolean[]) => {
   );
 };
 
-// The pane draws Clawd under one key; blits repaint him there.
+// The pane and the band draw Clawd under one key; blits repaint him there.
 export const rasterOf = (
   { Raster }: ElementTable<"terminal">,
   cells: string,
@@ -117,12 +119,12 @@ const MOOD_COLORS = {
   cold: "red",
 } satisfies Record<Mood, string>;
 
-// One dim line with the lifetime and the outcome in color.
-export const bandOf = (
+const noticeTextOf = (
   { Text }: ElementTable,
   { ttl, head, detail, mood }: Notice,
+  wrap: "truncate-end" | "wrap",
 ) => (
-  <Text wrap="truncate-end">
+  <Text wrap={wrap}>
     <Text dimColor>{"☕ cache warmer "}</Text>
     <Text color={TTL_COLORS[ttl]}>{ttl}</Text>
     <Text dimColor>{` every ${formatDuration(delayOf(ttl))} · `}</Text>
@@ -130,6 +132,27 @@ export const bandOf = (
     {detail && <Text dimColor>{` · ${detail}`}</Text>}
   </Text>
 );
+
+// One dim line with the lifetime and the outcome in color.
+export const bandOf = (elements: ElementTable, shown: Notice) =>
+  noticeTextOf(elements, shown, "truncate-end");
+
+// Clawd's raster with the notice wrapped beside him.
+export const mascotBandOf = (
+  elements: ElementTable<"terminal">,
+  shown: Notice,
+  raster: RenderElement,
+) => {
+  const { Box } = elements;
+  return (
+    <Box flexDirection="row" columnGap={2}>
+      {raster}
+      <Box flexDirection="column" justifyContent="center" flexShrink={1}>
+        {noticeTextOf(elements, shown, "wrap")}
+      </Box>
+    </Box>
+  );
+};
 
 // Every sub-page opens with the Back button, which holds the focus first, and its title.
 export const headerOf = (
@@ -172,6 +195,7 @@ const columnRowsOf = (
   const status = statusTextOf(state, at);
   return (
     MENU_ROWS +
+    rowsOf(REPOSITORY, width) +
     (status ? rowsOf(status, width) : 0) +
     (isDebug ? rowsOf(logTextOf(logPath), width) + 1 : 0)
   );
@@ -234,7 +258,7 @@ export const mainPageOf = (
   actions: PaneActions,
   mascot?: Mascot,
 ) => {
-  const { Box, Text, Button, Link } = elements;
+  const { Box, Text, Button } = elements;
   const layout = mascot?.layout;
   const width =
     layout === "beside" ? data.width - MASCOT_COLUMNS - SIDE_GAP : data.width;
@@ -244,7 +268,7 @@ export const mainPageOf = (
       key={`menu:${key}`}
       label={`› ${label}`}
       plain
-      autoFocus={key === "global" ? true : undefined}
+      autoFocus={key === "config" ? true : undefined}
       onPress={onPress}
     />
   );
@@ -256,15 +280,13 @@ export const mainPageOf = (
         alignItems="center"
         marginBottom={1}
       >
-        <Text>
-          <Text bold>Cache Warmer</Text>
-          {" · "}
-          <Link href={REPOSITORY} label="GitHub ↗" />
-        </Text>
+        <Text bold>Cache Warmer</Text>
         <Text dimColor>paulbkim.dev</Text>
+        <Text dimColor wrap="wrap">
+          {REPOSITORY}
+        </Text>
       </Box>
-      {item("global", "Global configuration", () => actions.open("global"))}
-      {item("session", "Session configuration", () => actions.open("session"))}
+      {item("config", "Configuration", () => actions.open("config"))}
       {item("analytics", "Analytics", () => actions.open("analytics"))}
       {item(
         "debug",

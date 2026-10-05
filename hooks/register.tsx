@@ -1,6 +1,7 @@
 import { atom, read, update } from "claude-code";
 import type {
   Args,
+  ConfigValue,
   EngineInterface,
   Frozen,
   Hook,
@@ -16,6 +17,7 @@ import type {
 import type {
   AllTime,
   Anchor,
+  BandStyle,
   IdleLimits,
   Notice,
   Page,
@@ -25,10 +27,10 @@ import type {
   Ttl,
   Warming,
 } from "../types";
-import { TERMINAL_DEFAULT, cellsOf } from "./mascot";
+import { MASCOT_ROWS, TERMINAL_DEFAULT, cellsOf } from "./mascot";
 import { paneOf } from "./pages";
 import type { Mascot, PaneActions, PaneData } from "./pane";
-import { MASCOT_KEY, bandOf, layoutOf, rasterOf } from "./pane";
+import { MASCOT_KEY, bandOf, layoutOf, mascotBandOf, rasterOf } from "./pane";
 import type { ForkReply } from "./warmer";
 import {
   DEFAULT_OUTPUT_TOKENS,
@@ -95,9 +97,9 @@ const isDebug = atom(
   { plugin: "cache-warmer", key: "isDebug" } as const,
   false,
 );
-const isBandShown = atom(
-  { plugin: "cache-warmer", key: "isBandShown" } as const,
-  true,
+const bandStyle = atom(
+  { plugin: "cache-warmer", key: "bandStyle" } as const,
+  "default",
 );
 const page = atom({ plugin: "cache-warmer", key: "page" } as const, "main");
 const refreshes = atom(
@@ -130,8 +132,8 @@ let previewSteps: Timer[] = [];
 let isStill = false;
 // Claude Code's theme, "auto" resolved to "light" or "dark".
 let theme = "dark";
-// The pane's requestId while it draws Clawd, with the color behind him there;
-// blits repaint him.
+// The pane's and the band's requestIds while they draw Clawd, each with the
+// color behind him there; blits repaint him in each.
 const sites = new Map<string, number>();
 let paneSince = 0;
 let isPainting = false;
@@ -347,8 +349,9 @@ const sceneOf = async ($: EngineInterface): Promise<Scene> => {
   };
 };
 
-// A refused blit means the pane no longer shows Clawd: it closed or left the
-// main page. Painting resumes when it draws Clawd again.
+// A refused blit means a site no longer shows Clawd: the pane closed or left
+// the main page, or the band's notice went. Painting there resumes when it
+// draws Clawd again.
 const paint = async ($: EngineInterface) => {
   if (isPainting || sites.size === 0) return;
   isPainting = true;
@@ -367,12 +370,15 @@ const paint = async ($: EngineInterface) => {
   }
 };
 
-// Frames run while the pane is open. A theme change shows from the next
-// start. The latest call decides: one that a later call overtook while it
-// waited leaves the timer alone.
+// Frames run while the pane is open or the band shows Clawd with a notice.
+// A theme change shows from the next start. The latest call decides: one that
+// a later call overtook while it waited leaves the timer alone.
 const syncAnimation = async ($: EngineInterface) => {
   const call = ++syncs;
-  const isShown = await isPaneOpen($);
+  const isShown =
+    ((await read($, notice)) !== null &&
+      (await read($, bandStyle)) === "default") ||
+    (await isPaneOpen($));
   const resolved = isShown && !animation ? await themeOf($) : theme;
   if (call !== syncs) return;
   theme = resolved;
@@ -381,6 +387,11 @@ const syncAnimation = async ($: EngineInterface) => {
     animation = undefined;
   } else if (!animation && !isStill)
     animation = $.clock.every(FRAME_MS, () => void paint($));
+};
+
+const clearNotice = async ($: EngineInterface) => {
+  await update($, notice, () => null);
+  await syncAnimation($);
 };
 
 const showNotice = async (
@@ -396,11 +407,8 @@ const showNotice = async (
     startedAt: current?.startedAt ?? at,
     since: current?.mood === shown.mood ? current.since : at,
   }));
-  if (isDone)
-    hideNotice = $.clock.after(
-      NOTICE_MS,
-      () => void update($, notice, () => null),
-    );
+  await syncAnimation($);
+  if (isDone) hideNotice = $.clock.after(NOTICE_MS, () => void clearNotice($));
 };
 
 const record = async (
@@ -648,12 +656,18 @@ const setLimit = async ($: EngineInterface, limitTtl: Ttl, count: number) => {
   if ((await read($, status)).state === "scheduled") await schedule($);
 };
 
-const toggleBand = async ($: EngineInterface) => {
-  const value = !(await read($, isBandShown));
+const bandStyleOf = (value: ConfigValue | undefined): BandStyle =>
+  value === "simplified" || value === "off" ? value : "default";
+
+const applyBand = async ($: EngineInterface, value: BandStyle) => {
+  await update($, bandStyle, () => value);
+  await syncAnimation($);
+};
+
+const setBand = async ($: EngineInterface, value: BandStyle) => {
   const answer = await $.config.set({ key: BAND_KEY, value });
-  if (answer.deny !== undefined)
-    return logDenied($, "band setting", answer.deny);
-  await update($, isBandShown, () => answer.value === true);
+  if (answer.deny !== undefined) return logDenied($, "band style", answer.deny);
+  await applyBand($, bandStyleOf(answer.value));
 };
 
 const tick = async ($: EngineInterface) => {
@@ -675,7 +689,7 @@ const migrate = async ($: EngineInterface) => {
   }));
   // 0.6.3's Debug page is now the menu's toggle.
   await update($, page, (current) =>
-    ["global", "session", "analytics"].includes(current) ? current : "main",
+    ["config", "analytics"].includes(current) ? current : "main",
   );
 };
 
@@ -683,7 +697,7 @@ const startSession = async (
   $: EngineInterface,
   option: Ttl,
   limits: IdleLimits,
-  isBandOn: boolean,
+  band: BandStyle,
 ) => {
   await $.command.register({
     name: "cache-warmer",
@@ -695,7 +709,7 @@ const startSession = async (
   await update($, isForced, () => forced === "1" || forced === "true");
   await update($, defaultTtl, () => option);
   await update($, idleLimits, () => limits);
-  await update($, isBandShown, () => isBandOn);
+  await update($, bandStyle, () => band);
   // A reload after the first response keeps the lifetime the cache was written
   // with, and one after a Session page choice keeps that choice.
   const isKept = (await read($, isLocked)) || (await read($, isSessionTtl));
@@ -751,12 +765,14 @@ const runCommand = async ($: EngineInterface, args: string) => {
     return { text: "Cache warmer band preview started." };
   }
   if (arg) return { text: "Usage: /cache-warmer [5m|1h|preview]" };
-  if (await isPaneOpen($)) {
+  const shown = (await $.ui.panes()).find((pane) => pane.id === PANE);
+  if (shown?.isFocused) {
     await $.ui.close({ id: PANE });
     await syncAnimation($);
     return { text: "Cache warmer closed." };
   }
-  paneSince = await $.clock.now();
+  // An open pane without the keyboard takes it back on the main page instead of closing.
+  if (!shown) paneSince = await $.clock.now();
   await update($, page, (): Page => "main");
   await $.ui.open({
     id: PANE,
@@ -766,7 +782,7 @@ const runCommand = async ($: EngineInterface, args: string) => {
     closeOnEscape: true,
   });
   await syncAnimation($);
-  return { text: "Cache warmer opened." };
+  return { text: shown ? "Cache warmer focused." : "Cache warmer opened." };
 };
 
 // A prompt is kept when it read an entry that would have expired without the
@@ -876,9 +892,19 @@ const renderBand = async (
   e: Frozen<MatchedEvent<"ui.render", { component: "AbovePrompt" }>>,
 ) => {
   const shown = await read($, notice);
-  if (!shown || e.props.hasSurvey || !(await read($, isBandShown)))
-    return undefined;
-  return bandOf($.ui.resolve(e), shown);
+  const style = await read($, bandStyle);
+  sites.delete(e.requestId);
+  if (!shown || e.props.hasSurvey || style === "off") return undefined;
+  if (
+    style === "simplified" ||
+    e.surface !== "terminal" ||
+    e.props.maxRows < MASCOT_ROWS
+  )
+    return bandOf($.ui.resolve(e), shown);
+  sites.set(e.requestId, TERMINAL_DEFAULT);
+  const elements = $.ui.resolve(e);
+  const cells = mascotOf(shown, await $.clock.now(), TERMINAL_DEFAULT);
+  return mascotBandOf(elements, shown, rasterOf(elements, cells));
 };
 
 const renderPane = async (
@@ -897,7 +923,7 @@ const renderPane = async (
     isForced: await read($, isForced),
     isLocked: await read($, isLocked),
     isDebug: debugOn,
-    isBandShown: await read($, isBandShown),
+    bandStyle: await read($, bandStyle),
     state: await read($, status),
     totals: await read($, totals),
     allTime: await read($, allTime),
@@ -921,7 +947,7 @@ const renderPane = async (
   const actions: PaneActions = {
     open: (next) => void update($, page, () => next),
     toggleDebug: () => void update($, isDebug, (current) => !current),
-    toggleBand: () => void toggleBand($),
+    setBand: (value) => void setBand($, value),
     chooseDefault: (value) => void chooseDefault($, value),
     chooseSession: (value) => void chooseSessionTtl($, value),
     setLimit: (limitTtl, count) => void setLimit($, limitTtl, count),
@@ -936,9 +962,9 @@ export const register: Register = (on, options) => {
     "5m": limitOf(options.idle5m ?? IDLE_LIMIT_DEFAULT),
     "1h": limitOf(options.idle1h ?? IDLE_LIMIT_DEFAULT),
   };
-  const isBandOn = options.band !== false;
+  const band = bandStyleOf(options.band);
   on("session.start", async ($, e, next) => {
-    await startSession($, option, limits, isBandOn);
+    await startSession($, option, limits, band);
     return next(e);
   });
   on("command.run", { command: "cache-warmer" }, ($, e) =>
@@ -954,7 +980,7 @@ export const register: Register = (on, options) => {
   on("config.set", { key: BAND_KEY }, async ($, e, next) => {
     const answer = await next(e);
     if (answer.deny === undefined)
-      await update($, isBandShown, () => answer.value === true);
+      await applyBand($, bandStyleOf(answer.value));
     return answer;
   });
   on("turn.start", onTurnStart);

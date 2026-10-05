@@ -55,11 +55,10 @@ Claude Code를 다시 시작한 뒤 `/cache-warmer`를 입력하면 패널이 �
 
 ## 화면에 보이는 것
 
-갱신하는 동안 프롬프트 위에 흐린 한 줄 띠가 나타나서, 캐시된 프롬프트를 다시 보내고 있다고 알려 줘요.
+갱신하는 동안 프롬프트 위에 띠가 나타나요. Claude Code 마스코트 Clawd 옆에 캐시된 프롬프트를 다시 보내고 있다는 알림이 떠요.
 캐시 시간을 색으로 보여 주고(`5m` 청록, `1h` 자홍), 갱신 간격과 결과도 보여 줘요. 갱신 중에는 노랑, 캐시가 따뜻하면 초록, 만료되거나 실패하면 빨강이에요.
 띠는 갱신이 끝나고 5초 뒤에 사라져요.
-
-패널에는 Claude Code 마스코트 Clawd가 나타나요.
+패널 첫 화면에도 Clawd가 나타나요.
 
 | Clawd | 뜻 |
 |---|---|
@@ -68,7 +67,7 @@ Claude Code를 다시 시작한 뒤 `/cache-warmer`를 입력하면 패널이 �
 | 식은 머그잔 옆에서 졸아요 | 캐시가 만료됐거나 갱신에 실패했어요. |
 
 - 갱신 요청은 대화에 끼어들지 않아요. 대화 기록에는 갱신마다 ☕로 시작하는 알림 줄이 하나씩 남고, 이 줄은 어떤 요청에도 실려 모델로 가지 않아요.
-- 띠는 Global 페이지나 `/config`의 `cache-warmer.band` 항목에서 끌 수 있어요.
+- 띠는 세 가지 모양이 있고 Configuration 페이지나 `/config`의 `cache-warmer.band` 항목에서 골라요. `default`는 Clawd와 알림을, `simplified`는 알림 한 줄만 보여 주고, `off`는 띠를 숨겨요.
 - 갱신 요청은 `[cache-warmer]`로 시작해서, 요청 로그나 프록시에서 내 프롬프트와 구별할 수 있어요.
 - `reduceMotion`을 켜면 Clawd가 움직이지 않아요.
 - `/cache-warmer preview`는 실제 갱신 없이 세 가지 상태를 미리 보여 줘요.
@@ -80,14 +79,14 @@ Claude Code를 다시 시작한 뒤 `/cache-warmer`를 입력하면 패널이 �
 `/cache-warmer`로 이 메뉴가 있는 패널을 열고 닫아요.
 
 ```text
-Global configuration    새 세션에 쓸 기본값
-Session configuration   지금 세션에만 쓸 설정
+Configuration           지금 세션 설정과 새 세션에 쓸 기본값
 Analytics               비용과 절약액
 Debug mode              켜기와 끄기
 ```
 
-- 프롬프트 입력란이 비어 있을 때 열면 패널이 키보드 포커스를 받고 Global configuration이 선택돼요.
-- Tab과 화살표 키로 항목 사이를 옮겨요. Enter로 페이지를 열거나 Debug mode를 켜고 꺼요. 각 페이지 맨 위에는 Back 버튼이 있고, `● 5m  ○ 1h` 같은 두 가지 설정은 Enter로 바꿔요.
+- 프롬프트 입력란이 비어 있을 때 열면 패널이 키보드 포커스를 받고 Configuration이 선택돼요.
+- 열려 있지만 키보드 포커스가 없는 패널에서 `/cache-warmer`를 실행하면 포커스가 패널로 돌아가요. 포커스가 있는 패널에서 실행하면 패널이 닫혀요.
+- Tab과 화살표 키로 항목 사이를 옮겨요. Enter로 페이지를 열거나 Debug mode를 켜고 꺼요. 각 페이지 맨 위에는 Back 버튼이 있고, `● 5m  ○ 1h` 같은 설정은 Enter로 다음 값으로 바꿔요.
 - 패널에 포커스가 있거나, 진행 중인 턴이 없고 프롬프트 입력란이 비어 있으면 Escape로 패널을 닫아요.
 - 메뉴 아래 한 줄에 다음 갱신 시각이나 캐시 유지가 멈춘 이유가 나와요.
 
@@ -101,10 +100,10 @@ Debug mode              켜기와 끄기
 | 캐시 쓰기 가격 | 입력 가격의 1.25배 | 입력 가격의 2배 |
 | 쉬는 동안 따뜻하게 남는 시간(기본 한도) | 27분 30초 | 5시간 30분 |
 
-- 기본값은 Global 페이지, `/config`의 `cache-warmer.ttl` 항목, 또는 `/cache-warmer 5m`, `/cache-warmer 1h` 명령어로 정해요. 명령어는 지금 세션도 함께 바꿔요.
+- 기본값은 Configuration 페이지의 New sessions 부분, `/config`의 `cache-warmer.ttl` 항목, 또는 `/cache-warmer 5m`, `/cache-warmer 1h` 명령어로 정해요. 명령어는 지금 세션도 함께 바꿔요.
 - 세션에서 메인 대화의 첫 응답이 오면 캐시 시간이 잠겨요. `/clear`를 하거나 새 세션을 열면 잠금이 풀려요. 잠겨 있는 동안 명령어는 거부되고, 새 기본값은 다음 세션부터 적용돼요.
 - 이 모드는 실행 중인 Claude Code 프로세스에 `CLAUDE_CODE_PROMPT_CACHE_TTL`을 설정해서 `promptCacheTtl`과 셸에서 온 값보다 우선해요. 바꾼 값은 다음 요청부터 적용되고, 그 요청이 캐시를 한 번 다시 써요.
-- `FORCE_PROMPT_CACHING_5M=1`이면 캐시는 늘 5분이고, Session 페이지에도 그렇게 나와요.
+- `FORCE_PROMPT_CACHING_5M=1`이면 캐시는 늘 5분이고, Configuration 페이지에도 그렇게 나와요.
 - 갱신 한 번으로 두 캐시 시간이 모두 늘어나요. 2026-10-05에 한 실제 테스트에서 1시간 캐시를 60분 넘게 따뜻하게 유지했어요.
 - 갱신이 프리픽스의 절반도 읽지 못하면 캐시가 만료된 것으로 보고 캐시 유지를 멈춰요.
 
@@ -134,7 +133,7 @@ flowchart TD
 멈춘 이유에 두 크기가 모두 나와요.
 
 세션이 쉬는 동안에는 마지막 프롬프트 뒤로 캐시 시간마다 **유휴 한도**만큼만 갱신해요.
-한도는 0부터 20까지이고 기본값은 5예요. Global 페이지나 `cache-warmer.idle5m`, `cache-warmer.idle1h` 항목에서 정해요.
+한도는 0부터 20까지이고 기본값은 5예요. Configuration 페이지나 `cache-warmer.idle5m`, `cache-warmer.idle1h` 항목에서 정해요.
 턴이 진행 중일 때는 마지막 프롬프트 뒤 60분, 또는 캐시 시간 두 번 중 더 긴 시간이 지나면 멈춰요.
 
 대화 압축, `/clear`, 모델 변경, 실패했거나 캐시 만료를 확인한 갱신, 너무 늦게 울린 타이머 뒤에도 멈춰요.

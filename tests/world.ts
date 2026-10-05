@@ -41,20 +41,21 @@ export const WARMED: ModelForkResult = {
 };
 
 export const stubPanes = (on: On) => {
-  const panes = new Set<string>();
+  // Each open pane's id and whether it holds the keyboard: an open with `focus` takes it.
+  const panes = new Map<string, boolean>();
   const opened: PaneOpenArgs[] = [];
   on("ui.panes", () => ({
-    value: [...panes].map((id) => ({
+    value: [...panes].map(([id, isFocused]) => ({
       id,
       title: "Cache warmer",
       isShown: true,
-      isFocused: false,
+      isFocused,
       isPlaced: true,
     })),
   }));
   on("ui.open", (_, e) => {
     opened.push(e);
-    panes.add(e.id);
+    panes.set(e.id, e.focus === true);
     return { value: { isPlaced: true } };
   });
   on("ui.close", (_, e) => {

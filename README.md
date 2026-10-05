@@ -55,11 +55,10 @@ To stop all warming, run `claude plugin disable cache-warmer`.
 
 ## What you see
 
-During a refresh, a dim one-line band above the prompt says that the mod is resending the cached prompt.
+During a refresh, a band above the prompt shows Clawd, the Claude Code mascot, beside a notice that the mod is resending the cached prompt.
 It shows the cache time in color (`5m` cyan, `1h` magenta), the refresh interval, and the outcome: yellow while the refresh runs, green when the cache is warm, and red when it expired or failed.
 The band goes 5 seconds after the refresh.
-
-The pane shows Clawd, the Claude Code mascot.
+The pane's main page shows Clawd too.
 
 | Clawd | Meaning |
 |---|---|
@@ -68,7 +67,7 @@ The pane shows Clawd, the Claude Code mascot.
 | Dozes with a cold mug | The cache expired, or the refresh failed. |
 
 - The refresh never enters the conversation. The transcript keeps one notice row per refresh, starting with ☕, and no request sends it to the model.
-- Turn the band off on the Global page or in the `/config` row `cache-warmer.band`.
+- The band has three styles, set on the Configuration page or in the `/config` row `cache-warmer.band`: `default` shows Clawd beside the notice, `simplified` shows the notice as one line, and `off` hides the band.
 - Each refresh request starts with `[cache-warmer]`, so a request log or proxy can tell it from your prompts.
 - `reduceMotion` keeps Clawd still.
 - `/cache-warmer preview` plays the three states with no refresh.
@@ -80,14 +79,14 @@ The pane shows Clawd, the Claude Code mascot.
 `/cache-warmer` opens and closes a pane with this menu:
 
 ```text
-Global configuration    defaults for new sessions
-Session configuration   the current session only
+Configuration           this session, then defaults for new sessions
 Analytics               costs and savings
 Debug mode              on or off
 ```
 
-- The pane takes the keyboard when it opens over an empty prompt, with Global configuration selected.
-- Tab and the arrow keys move between items. Enter opens a page or turns Debug mode on or off. Each page starts with a Back button, and Enter on a two-option setting such as `● 5m  ○ 1h` switches it.
+- The pane takes the keyboard when it opens over an empty prompt, with Configuration selected.
+- `/cache-warmer` on an open pane without the keyboard gives the keyboard back to it; on a pane with the keyboard, it closes the pane.
+- Tab and the arrow keys move between items. Enter opens a page or turns Debug mode on or off. Each page starts with a Back button, and Enter on a setting such as `● 5m  ○ 1h` moves it to the next option.
 - Escape closes the pane when the pane has focus, or when the prompt is idle and empty.
 - A line below the menu shows the next refresh, or why warming stopped.
 
@@ -101,10 +100,10 @@ Debug mode              on or off
 | Cache write price | 1.25× input | 2× input |
 | Warm time when idle, default limit | 27m30s | 5h30m |
 
-- Set the default on the Global page, in the `/config` row `cache-warmer.ttl`, or with `/cache-warmer 5m` or `/cache-warmer 1h`. The command also sets the current session.
+- Set the default under New sessions on the Configuration page, in the `/config` row `cache-warmer.ttl`, or with `/cache-warmer 5m` or `/cache-warmer 1h`. The command also sets the current session.
 - The first main-conversation response locks the session's cache time. `/clear` or a new session unlocks it. While it is locked, the command refuses, and a new default applies to later sessions only.
 - The mod sets `CLAUDE_CODE_PROMPT_CACHE_TTL` for this Claude Code process, so it overrides `promptCacheTtl` and the shell. A change applies from the next request, which writes the cache once.
-- `FORCE_PROMPT_CACHING_5M=1` keeps the cache at 5 minutes, and the Session page says so.
+- `FORCE_PROMPT_CACHING_5M=1` keeps the cache at 5 minutes, and the Configuration page says so.
 - A refresh extends both cache times. In a live test on 2026-10-05, it kept a 1-hour cache warm past 60 minutes.
 - A refresh that reads less than half of the prefix counts as expired and stops warming.
 
@@ -134,7 +133,7 @@ So each model has a break-even prompt size, and a smaller prompt gets no refresh
 The stop reason shows both sizes.
 
 While the session is idle, each cache time gets at most its **idle limit** of refreshes after the last prompt.
-The limit is 0 to 20, 5 by default, set on the Global page or in `cache-warmer.idle5m` and `cache-warmer.idle1h`.
+The limit is 0 to 20, 5 by default, set on the Configuration page or in `cache-warmer.idle5m` and `cache-warmer.idle1h`.
 While a turn runs, warming stops 60 minutes after the last prompt, or after two cache times if that is longer.
 
 Warming also stops after compaction, `/clear`, a model change, a failed or expired refresh, or a timer that fired too late.

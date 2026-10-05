@@ -13,74 +13,98 @@ import {
 } from "./warmer";
 
 const TTLS = ["5m", "1h"] as const;
+const BAND_STYLES = ["default", "simplified", "off"] as const;
 
-// One button for a two-way choice: it marks the current option and a press picks the other.
-const toggleOf = <T extends string | boolean>(
+// One button for a choice among a few options: it marks the current option and a press picks the next.
+const toggleOf = <T extends string>(
   { Button }: ElementTable,
   key: string,
-  options: readonly [T, T],
-  labelOf: (value: T) => string,
+  options: readonly T[],
   current: T,
   choose: (value: T) => void,
 ) => (
   <Button
     key={`toggle:${key}`}
     label={options
-      .map((value) => `${value === current ? "●" : "○"} ${labelOf(value)}`)
+      .map((value) => `${value === current ? "●" : "○"} ${value}`)
       .join("  ")}
-    onPress={() => choose(options[0] === current ? options[1] : options[0])}
+    onPress={() =>
+      choose(
+        options[(options.indexOf(current) + 1) % options.length] ?? current,
+      )
+    }
   />
 );
 
-const TOGGLE_HINT = "Enter toggles a setting.";
-
-const GLOBAL_LABELS = {
+const LABELS = {
+  ttl: "Lifetime",
   default: "Default lifetime",
   band: "Refresh band",
   "5m": "Idle refreshes, 5m",
   "1h": "Idle refreshes, 1h",
 };
-const GLOBAL_LABEL_WIDTH = Math.max(
-  ...Object.values(GLOBAL_LABELS).map((label) => label.length),
+const LABEL_WIDTH = Math.max(
+  ...Object.values(LABELS).map((label) => label.length),
 );
 
-const globalPageOf = (
+// This session's settings, then the defaults new sessions start with.
+const configPageOf = (
   elements: ElementTable,
-  { saved, limits, isBandShown }: PaneData,
+  data: PaneData,
   actions: PaneActions,
 ) => {
   const { Box, Text, Button } = elements;
+  const { chosen, saved, limits, bandStyle, isForced, isLocked, state, at } =
+    data;
+  const effective = isForced ? "5m" : chosen;
+  const status = statusTextOf(state, at);
   const label = (text: string) => (
-    <Text>{`${text.padEnd(GLOBAL_LABEL_WIDTH)}  `}</Text>
+    <Text>{`${text.padEnd(LABEL_WIDTH)}  `}</Text>
   );
   return (
     <Box flexDirection="column">
-      {headerOf(elements, "Global configuration", actions.open)}
-      <Box key="default" flexDirection="row">
-        {label(GLOBAL_LABELS.default)}
-        {toggleOf(
-          elements,
-          "default",
-          TTLS,
-          String,
-          saved,
-          actions.chooseDefault,
+      {headerOf(elements, "Configuration", actions.open)}
+      <Text key="session" bold>
+        This session
+      </Text>
+      <Box key="ttl" flexDirection="row">
+        {label(LABELS.ttl)}
+        {isLocked ? (
+          <Text bold>{chosen}</Text>
+        ) : (
+          toggleOf(elements, "ttl", TTLS, chosen, actions.chooseSession)
+        )}
+        {isLocked && (
+          <Text dimColor>{"  locked: /clear or a new session unlocks it"}</Text>
         )}
       </Box>
+      <Text key="interval" dimColor>
+        {`Refreshes every ${formatDuration(delayOf(effective))} · idle limit ${limits[effective]} refreshes`}
+      </Text>
+      {status && (
+        <Text key="status" dimColor>
+          {status}
+        </Text>
+      )}
+      {isForced && (
+        <Text key="forced" color="yellow">
+          {`FORCE_PROMPT_CACHING_5M overrides ${chosen}; the cache lives 5m.`}
+        </Text>
+      )}
+      <Box key="defaults" marginTop={1}>
+        <Text bold>New sessions</Text>
+      </Box>
+      <Box key="default" flexDirection="row">
+        {label(LABELS.default)}
+        {toggleOf(elements, "default", TTLS, saved, actions.chooseDefault)}
+      </Box>
       <Box key="band" flexDirection="row">
-        {label(GLOBAL_LABELS.band)}
-        {toggleOf(
-          elements,
-          "band",
-          [true, false],
-          (value) => (value ? "on" : "off"),
-          isBandShown,
-          actions.toggleBand,
-        )}
+        {label(LABELS.band)}
+        {toggleOf(elements, "band", BAND_STYLES, bandStyle, actions.setBand)}
       </Box>
       {TTLS.map((ttl) => (
         <Box key={`idle:${ttl}`} flexDirection="row">
-          {label(GLOBAL_LABELS[ttl])}
+          {label(LABELS[ttl])}
           <Button
             key={`idle:${ttl}:-`}
             label="−"
@@ -97,57 +121,9 @@ const globalPageOf = (
           </Text>
         </Box>
       ))}
-      <Text key="hint" dimColor>
-        {TOGGLE_HINT}
-      </Text>
       <Text key="note" dimColor>
-        {`Saved for new sessions. Each refresh still needs Pi's ${formatUsd(MIN_SAVINGS_USD)} expected saving.`}
+        {`Enter switches a setting. Each refresh still needs Pi's ${formatUsd(MIN_SAVINGS_USD)} expected saving.`}
       </Text>
-    </Box>
-  );
-};
-
-const sessionPageOf = (
-  elements: ElementTable,
-  data: PaneData,
-  actions: PaneActions,
-) => {
-  const { Box, Text } = elements;
-  const { chosen, isForced, isLocked, limits, state, at } = data;
-  const effective = isForced ? "5m" : chosen;
-  const status = statusTextOf(state, at);
-  return (
-    <Box flexDirection="column">
-      {headerOf(elements, "Session configuration", actions.open)}
-      <Box key="ttl" flexDirection="row">
-        <Text>Lifetime </Text>
-        {isLocked ? (
-          <Text bold>{chosen}</Text>
-        ) : (
-          toggleOf(elements, "ttl", TTLS, String, chosen, actions.chooseSession)
-        )}
-        {isLocked && (
-          <Text dimColor>{"  locked: /clear or a new session unlocks it"}</Text>
-        )}
-      </Box>
-      {!isLocked && (
-        <Text key="hint" dimColor>
-          {TOGGLE_HINT}
-        </Text>
-      )}
-      <Text key="interval" dimColor>
-        {`Refreshes every ${formatDuration(delayOf(effective))} · idle limit ${limits[effective]} refreshes`}
-      </Text>
-      {status && (
-        <Text key="status" dimColor>
-          {status}
-        </Text>
-      )}
-      {isForced && (
-        <Text key="forced" color="yellow">
-          {`FORCE_PROMPT_CACHING_5M overrides ${chosen}; the cache lives 5m.`}
-        </Text>
-      )}
     </Box>
   );
 };
@@ -214,8 +190,7 @@ export const paneOf = (
   actions: PaneActions,
   mascot?: Mascot,
 ) => {
-  if (data.page === "global") return globalPageOf(elements, data, actions);
-  if (data.page === "session") return sessionPageOf(elements, data, actions);
+  if (data.page === "config") return configPageOf(elements, data, actions);
   if (data.page === "analytics")
     return analyticsPageOf(elements, data, actions);
   return mainPageOf(elements, data, actions, mascot);

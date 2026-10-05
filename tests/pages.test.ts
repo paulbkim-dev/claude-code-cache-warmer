@@ -24,15 +24,14 @@ test("each menu item opens its page, Back returns to the menu, and reopening sta
   await start($);
   await toggle($);
   const pane = await mountPane($, "terminal");
-  expect(await pane.find({ type: "Link" })).toMatchObject({
-    props: {
-      href: "https://github.com/paulbkim-dev/claude-code-cache-warmer",
-      label: "GitHub ↗",
-    },
-  });
+  expect(
+    await pane.find({
+      text: "github.com/paulbkim-dev/claude-code-cache-warmer",
+    }),
+  ).toBeDefined();
+  expect(await pane.find({ type: "Link" })).toBeUndefined();
   for (const [key, title] of [
-    ["global", "Global configuration"],
-    ["session", "Session configuration"],
+    ["config", "Configuration"],
     ["analytics", "Analytics"],
   ] as const) {
     await pane.press({ key: `menu:${key}` });
@@ -41,12 +40,12 @@ test("each menu item opens its page, Back returns to the menu, and reopening sta
       props: { plain: true, autoFocus: true },
     });
     await pane.press({ key: "back" });
-    expect(await pane.find({ text: "Cache Warmer · GitHub ↗" })).toBeDefined();
+    expect(await pane.find({ text: "Cache Warmer" })).toBeDefined();
   }
-  await pane.press({ key: "menu:global" });
+  await pane.press({ key: "menu:config" });
   await toggle($);
   await toggle($);
-  expect(await pane.find({ key: "menu:global" })).toMatchObject({
+  expect(await pane.find({ key: "menu:config" })).toMatchObject({
     props: { autoFocus: true },
   });
   await pane.unmount();
@@ -62,7 +61,7 @@ test("the idle limit stops warming after that many idle refreshes; + raises it",
   expect(
     await pane.find({ text: /^Stopped: 5 idle refreshes reached\./ }),
   ).toBeDefined();
-  await pane.press({ key: "menu:global" });
+  await pane.press({ key: "menu:config" });
   // 5 * 4m30s + 5m, and 5 * 54m + 1h.
   expect(await pane.find({ text: "  covers 27m30s idle" })).toBeDefined();
   expect(await pane.find({ text: "  covers 5h30m idle" })).toBeDefined();
@@ -75,19 +74,21 @@ test("the idle limit stops warming after that many idle refreshes; + raises it",
   expect(forks).toHaveLength(11);
 });
 
-test("the Global page saves the default lifetime even when locked; this session follows only while unlocked", async ($, on) => {
+test("the New sessions default lifetime saves even when locked; this session follows only while unlocked", async ($, on) => {
   const { configSets, envSets, prompt } = world(on);
   on("session.end", (_, e) => ({ sessionId: e.sessionId }));
   await start($);
   await prompt($, "t1");
   const pane = await mountPane($, "terminal");
-  await pane.press({ key: "menu:global" });
+  await pane.press({ key: "menu:config" });
   await pane.press({ key: "toggle:default" });
   expect(configSets).toEqual(["1h"]);
   expect(await pane.find({ key: "toggle:default" })).toMatchObject({
     props: { label: "○ 5m  ● 1h" },
   });
-  expect(await pane.find({ text: "Enter toggles a setting." })).toBeDefined();
+  expect(
+    await pane.find({ text: /^Enter switches a setting\./ }),
+  ).toBeDefined();
   // /config saves it too, without the refusal 0.5 gave.
   const answer = await $.config.set({
     key: "cache-warmer.ttl",
@@ -208,7 +209,7 @@ test("the debug table under the menu keeps the newest rows that fit the pane, al
     (await pane.findAll({ type: "Text", text: /  warmed  / })).map(
       (one) => one.text,
     );
-  // The menu's seven rows, the stop reason's two, the log path and the column names leave four of 15; Clawd would need eight.
+  // The menu's six rows, the repository's two, the stop reason's two, the log path and the column names leave three of 15; Clawd would need eight.
   const narrow = await mountPane($, "terminal", { columns: 40, bodyRows: 15 });
   await narrow.press({ key: "menu:debug" });
   expect(
@@ -217,7 +218,6 @@ test("the debug table under the menu keeps the newest rows that fit the pane, al
     }),
   ).toBeDefined();
   expect(await rowsIn(narrow)).toEqual([
-    "   21m  warmed  200.0k     30  182  $0.04  $0.92",
     "16m30s  warmed  200.0k     30  182  $0.04  $0.92",
     "   12m  warmed  200.0k     30  182  $0.04  $0.92",
     " 7m30s  warmed  200.0k     30  182  $0.04  $0.92",

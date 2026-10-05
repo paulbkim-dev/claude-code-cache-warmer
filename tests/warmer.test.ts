@@ -54,7 +54,7 @@ test("a response schedules a fork at 90% of the lifetime; the band shows its lif
   expect((await band.find({ text: /^☕ cache warmer / }))?.text).toBe(
     "☕ cache warmer 5m every 4m30s · Cache warmed · read 200.0k · $0.04 · saves $0.92 vs rewrite",
   );
-  expect(await band.find({ type: "Raster" })).toBeUndefined();
+  expect(await band.find({ type: "Raster" })).toBeDefined();
   expect(logged).toEqual([
     "Cache warmer could not record the refresh: no implementation for session.append",
   ]);
@@ -113,6 +113,10 @@ test("idle warming stops after five idle refreshes; a prompt within their reach 
     await pane.press({ key: "back" });
     await pane.unmount();
   }
+  // A pane that lost the keyboard takes it back instead of closing.
+  panes.set("cache-warmer", false);
+  expect((await toggle($)).text).toBe("Cache warmer focused.");
+  expect(opened.at(-1)).toMatchObject({ focus: true });
   expect((await toggle($)).text).toBe("Cache warmer closed.");
   expect(panes.size).toBe(0);
 });
@@ -132,7 +136,7 @@ test("a small idle prompt is not worth a refresh, and the pane says why", async 
   await pane.unmount();
 });
 
-test("the command saves the lifetime and sets the variable; the Session page changes only this session", async ($, on) => {
+test("the command saves the lifetime and sets the variable; the configuration page's session lifetime changes only this session", async ($, on) => {
   const { clock, configSets, envSets, forks, prompt } = world(on);
   await start($);
   const answer = await $.command.run({
@@ -146,7 +150,7 @@ test("the command saves the lifetime and sets the variable; the Session page cha
   expect(configSets).toEqual(["1h"]);
   expect(envSets.at(-1)).toEqual(["CLAUDE_CODE_PROMPT_CACHE_TTL", "1h"]);
   const pane = await mountPane($, "terminal");
-  await pane.press({ key: "menu:session" });
+  await pane.press({ key: "menu:config" });
   await pane.press({ key: "toggle:ttl" });
   expect(envSets.at(-1)).toEqual(["CLAUDE_CODE_PROMPT_CACHE_TTL", "5m"]);
   await pane.press({ key: "toggle:ttl" });
@@ -178,14 +182,11 @@ test("the first response locks the session's lifetime until /clear; the command 
   expect(configSets).toEqual([]);
   expect(envSets).toEqual([["CLAUDE_CODE_PROMPT_CACHE_TTL", "5m"]]);
   const locked = await mountPane($, "terminal");
-  await locked.press({ key: "menu:session" });
+  await locked.press({ key: "menu:config" });
   expect(
     await locked.find({ text: "  locked: /clear or a new session unlocks it" }),
   ).toBeDefined();
   expect(await locked.find({ key: "toggle:ttl" })).toBeUndefined();
-  expect(
-    await locked.find({ text: "Enter toggles a setting." }),
-  ).toBeUndefined();
   await locked.unmount();
   await $.session.end({
     reason: "clear",
@@ -216,7 +217,7 @@ test(
     await clock.advance(270_000);
     expect(forks).toHaveLength(1);
     const pane = await mountPane($, "terminal");
-    await pane.press({ key: "menu:session" });
+    await pane.press({ key: "menu:config" });
     expect(
       await pane.find({
         text: "FORCE_PROMPT_CACHING_5M overrides 1h; the cache lives 5m.",

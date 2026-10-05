@@ -29,7 +29,7 @@ export type Status =
   | { state: "refreshing" }
   | { state: "stopped"; reason: string };
 
-// How Clawd behaves in the pane: sipping while a refresh runs, hopping after
+// How Clawd behaves in the pane and the band: sipping while a refresh runs, hopping after
 // a warm one, dozing off over a cold mug after a failure or an expired cache.
 export type Mood = "warming" | "warmed" | "cold";
 
@@ -59,7 +59,10 @@ export type AllTime = Totals & { since: number };
 // The refreshes each lifetime may send while the session is idle.
 export type IdleLimits = { "5m": number; "1h": number };
 
-export type Page = "main" | "global" | "session" | "analytics";
+export type Page = "main" | "config" | "analytics";
+
+// The band above the prompt during a refresh: Clawd beside the notice, the notice as one line, or nothing.
+export type BandStyle = "default" | "simplified" | "off";
 
 // The main conversation's last request: the prefix a fork replays and keeps warm.
 export type Anchor = {
@@ -97,8 +100,7 @@ declare module "claude-code" {
       isLocked: boolean;
       // While on, the main page lists the newest refreshes and a JSONL log records refreshes and stops.
       isDebug: boolean;
-      // While on, the band above the prompt shows each refresh.
-      isBandShown: boolean;
+      bandStyle: BandStyle;
       page: Page;
       refreshes: Refresh[];
       status: Status;

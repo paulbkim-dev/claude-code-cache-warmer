@@ -38,7 +38,7 @@ test("the open pane animates Clawd beside the menu, not on a sub-page, until it 
   expect(
     blits.filter(({ requestId }) => requestId === "cache-warmer").length,
   ).toBe(6);
-  await pane.press({ key: "menu:global" });
+  await pane.press({ key: "menu:config" });
   expect(await pane.find({ type: "Raster" })).toBeUndefined();
   const before = blits.length;
   await clock.advance(200);

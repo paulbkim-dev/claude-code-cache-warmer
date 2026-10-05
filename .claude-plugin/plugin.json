@@ -1,6 +1,6 @@
 {
   "name": "cache-warmer",
-  "version": "0.9.3",
+  "version": "0.10.0",
   "description": "Keep the main conversation's prompt cache warm by automatically forking its last request, tools denied and billed like any request, shortly before the cache expires; switch its lifetime between 5m and 1h, and show each refresh's cost and estimated saving.",
   "author": {
     "name": "Paul B. Kim"
@@ -35,10 +35,11 @@
       "max": 20
     },
     "band": {
-      "type": "boolean",
+      "type": "string",
       "title": "Refresh band",
-      "description": "Show a one-line band above the prompt while a refresh runs and for 5 seconds after it.",
-      "default": true
+      "description": "The band above the prompt while a refresh runs and for 5 seconds after it: default shows Clawd beside the notice, simplified one line, off nothing.",
+      "default": "default",
+      "options": ["default", "simplified", "off"]
     }
   }
 }
