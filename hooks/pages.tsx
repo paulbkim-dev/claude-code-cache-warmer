@@ -1,8 +1,8 @@
 import type { ElementTable } from "claude-code";
 
-import type { Notice, Page, Totals, Ttl } from "../types";
+import type { Totals, Ttl } from "../types";
 import type { Mascot, PaneActions, PaneData } from "./pane";
-import { bandOf, headerOf, mainPageOf, statusTextOf, tableOf } from "./pane";
+import { headerOf, mainPageOf, statusTextOf, tableOf } from "./pane";
 import {
   MIN_SAVINGS_USD,
   PRICES_AS_OF,
@@ -203,55 +203,4 @@ export const paneOf = (
   if (data.page === "analytics")
     return analyticsPageOf(elements, data, actions);
   return mainPageOf(elements, data, actions, mascot);
-};
-
-const BAR_PAGES: [page: Page, label: string][] = [
-  ["global", "Global"],
-  ["session", "Session"],
-  ["analytics", "Analytics"],
-];
-
-// The menu as one row above the prompt, then the notice, the status, or the open page.
-export const barOf = (
-  elements: ElementTable,
-  data: PaneData,
-  actions: PaneActions,
-  shown: Notice | null,
-) => {
-  const { Box, Text, Button } = elements;
-  const status = statusTextOf(data.state, data.at);
-  const body =
-    data.page !== "main"
-      ? paneOf(elements, data, actions)
-      : shown
-        ? bandOf(elements, shown)
-        : status && (
-            <Text key="status" dimColor wrap="truncate-end">
-              {status}
-            </Text>
-          );
-  return (
-    <Box flexDirection="column">
-      <Box key="bar" flexDirection="row" columnGap={2} flexWrap="wrap">
-        <Text bold>Cache Warmer</Text>
-        {BAR_PAGES.map(([page, label]) => (
-          <Button
-            key={`menu:${page}`}
-            label={label}
-            plain
-            variant={data.page === page ? "primary" : undefined}
-            onPress={() => actions.open(data.page === page ? "main" : page)}
-          />
-        ))}
-        <Button
-          key="menu:debug"
-          label="Debug · off"
-          plain
-          onPress={actions.toggleDebug}
-        />
-        <Button key="close" label="✕ Close" plain onPress={actions.close} />
-      </Box>
-      {body}
-    </Box>
-  );
 };

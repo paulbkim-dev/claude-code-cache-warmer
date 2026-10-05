@@ -45,7 +45,6 @@ export type PaneData = {
 
 export type PaneActions = {
   open: (page: Page) => void;
-  close: () => void;
   toggleDebug: () => void;
   toggleBand: () => void;
   chooseDefault: (value: Ttl) => void;
@@ -132,7 +131,7 @@ export const bandOf = (
   </Text>
 );
 
-// Every sub-page opens with the Back button and its title; in the pane, Back takes the focus first.
+// Every sub-page opens with the Back button, which holds the focus first, and its title.
 export const headerOf = (
   { Box, Text, Button }: ElementTable,
   title: string,
@@ -214,11 +213,11 @@ type Layout = "beside" | "above";
 export type Mascot = { raster: RenderElement; layout: Layout };
 
 // Where Clawd fits on the main page: beside the column, above it with a blank row between, or nowhere.
+// Beside him the column scrolls, so a turn's spinner shrinking an inline pane keeps him drawn.
 export const layoutOf = (data: PaneData): Layout | undefined => {
-  const side = data.width - MASCOT_COLUMNS - SIDE_GAP;
   if (
-    side >= SIDE_COLUMNS &&
-    data.rows >= Math.max(MASCOT_ROWS, columnRowsOf(data, side))
+    data.width - MASCOT_COLUMNS - SIDE_GAP >= SIDE_COLUMNS &&
+    data.rows >= MASCOT_ROWS
   )
     return "beside";
   if (

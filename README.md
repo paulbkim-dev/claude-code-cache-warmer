@@ -48,7 +48,7 @@ claude plugin marketplace add paulbkim-dev/claude-code-cache-warmer
 claude plugin install cache-warmer@claude-code-cache-warmer
 ```
 
-Restart Claude Code, then type `/cache-warmer` to open the menu bar.
+Restart Claude Code, then type `/cache-warmer` to open the pane.
 To stop all warming, run `claude plugin disable cache-warmer`.
 
 <br>
@@ -59,7 +59,7 @@ During a refresh, a dim one-line band above the prompt says that the mod is rese
 It shows the cache time in color (`5m` cyan, `1h` magenta), the refresh interval, and the outcome: yellow while the refresh runs, green when the cache is warm, and red when it expired or failed.
 The band goes 5 seconds after the refresh.
 
-The Debug mode pane shows Clawd, the Claude Code mascot.
+The pane shows Clawd, the Claude Code mascot.
 
 | Clawd | Meaning |
 |---|---|
@@ -75,25 +75,21 @@ The Debug mode pane shows Clawd, the Claude Code mascot.
 
 <br>
 
-## The menu
+## The pane
 
-`/cache-warmer` opens and closes a menu bar above the prompt:
+`/cache-warmer` opens and closes a pane with this menu:
 
 ```text
-Cache Warmer  Global  Session  Analytics  Debug · off  ✕ Close
-Next refresh in 3m37s · idle · expected saving $0.05
+Global configuration    defaults for new sessions
+Session configuration   the current session only
+Analytics               costs and savings
+Debug mode              on or off
 ```
 
-| Item | Contents |
-|---|---|
-| Global | defaults for new sessions |
-| Session | the current session only |
-| Analytics | costs and savings |
-| Debug | moves the menu to a side pane with Clawd and the refresh log |
-
-- Click an item, or focus the bar with ctrl+x tab, then use Tab and Enter. A page opens under the bar; its item or Back closes it.
-- The row under the bar shows the next refresh, why warming stopped, or the band's refresh notice.
-- While Debug mode is on, `/cache-warmer` opens the side pane instead. Escape closes the pane when it has focus, or when the prompt is idle and empty. Turning Debug mode off returns the menu to the bar.
+- The pane takes the keyboard when it opens over an empty prompt, with Global configuration selected.
+- Tab and the arrow keys move between items. Enter opens a page or turns Debug mode on or off. Each page starts with a Back button.
+- Escape closes the pane when the pane has focus, or when the prompt is idle and empty.
+- A line below the menu shows the next refresh, or why warming stopped.
 
 <br>
 
@@ -148,7 +144,7 @@ The next request starts it again.
 
 ## Debug mode
 
-While debug mode is on, the menu is a side pane, and the newest refreshes show under it with their age, result, tokens, cost, and estimated saving.
+While debug mode is on, the newest refreshes show under the menu with their age, result, tokens, cost, and estimated saving.
 The mod also appends one JSON line per refresh and per stop to `<config>/cache-warmer/debug/<session id>.jsonl`, where `<config>` is `CLAUDE_CONFIG_DIR` or `~/.claude`.
 
 > ⚠️ The mod cannot see `/rewind`.

@@ -26,7 +26,7 @@ import type {
   Warming,
 } from "../types";
 import { TERMINAL_DEFAULT, cellsOf } from "./mascot";
-import { barOf, paneOf } from "./pages";
+import { paneOf } from "./pages";
 import type { Mascot, PaneActions, PaneData } from "./pane";
 import { MASCOT_KEY, bandOf, layoutOf, rasterOf } from "./pane";
 import type { ForkReply } from "./warmer";
@@ -98,10 +98,6 @@ const isDebug = atom(
 const isBandShown = atom(
   { plugin: "cache-warmer", key: "isBandShown" } as const,
   true,
-);
-const isBarOpen = atom(
-  { plugin: "cache-warmer", key: "isBarOpen" } as const,
-  false,
 );
 const page = atom({ plugin: "cache-warmer", key: "page" } as const, "main");
 const refreshes = atom(
@@ -661,7 +657,7 @@ const toggleBand = async ($: EngineInterface) => {
 };
 
 const tick = async ($: EngineInterface) => {
-  if (!(await read($, isBarOpen)) && !(await isPaneOpen($))) return;
+  if (!(await isPaneOpen($))) return;
   const at = await $.clock.now();
   await update($, now, () => at);
 };
@@ -705,9 +701,6 @@ const startSession = async (
   const isKept = (await read($, isLocked)) || (await read($, isSessionTtl));
   await setTtl($, isKept ? await read($, ttl) : option);
   await migrate($);
-  // Before 0.8 the menu was the pane; a reload with Debug mode off moves it to the bar.
-  if (!(await read($, isDebug)) && (await isPaneOpen($)))
-    await setMenu($, "opened");
   const stored = await storedAllTime($);
   const total = stored ?? { ...ZERO_TOTALS, since: await $.clock.now() };
   if (!stored) await $.store.set(ALL_TIME_KEY, total);
@@ -748,32 +741,6 @@ const preview = async ($: EngineInterface) => {
   ];
 };
 
-const openPane = async ($: EngineInterface) => {
-  paneSince = await $.clock.now();
-  await $.ui.open({
-    id: PANE,
-    title: "Cache warmer",
-    rows: 14,
-    closeOnEscape: true,
-  });
-};
-
-// The menu is the bar above the prompt, or the side pane while Debug mode is on.
-const setMenu = async ($: EngineInterface, state: "opened" | "closed") => {
-  const isPane = state === "opened" && (await read($, isDebug));
-  await update($, page, (): Page => "main");
-  await update($, isBarOpen, () => state === "opened" && !isPane);
-  if (isPane) await openPane($);
-  else if (await isPaneOpen($)) await $.ui.close({ id: PANE });
-  await syncAnimation($);
-};
-
-// Debug mode moves the open menu between the bar and the pane.
-const toggleDebug = async ($: EngineInterface) => {
-  await update($, isDebug, (current) => !current);
-  await setMenu($, "opened");
-};
-
 const runCommand = async ($: EngineInterface, args: string) => {
   const arg = args.trim();
   if (isTtl(arg)) return { text: await chooseTtl($, arg) };
@@ -784,9 +751,22 @@ const runCommand = async ($: EngineInterface, args: string) => {
     return { text: "Cache warmer band preview started." };
   }
   if (arg) return { text: "Usage: /cache-warmer [5m|1h|preview]" };
-  const isOpen = (await read($, isBarOpen)) || (await isPaneOpen($));
-  await setMenu($, isOpen ? "closed" : "opened");
-  return { text: isOpen ? "Cache warmer closed." : "Cache warmer opened." };
+  if (await isPaneOpen($)) {
+    await $.ui.close({ id: PANE });
+    await syncAnimation($);
+    return { text: "Cache warmer closed." };
+  }
+  paneSince = await $.clock.now();
+  await update($, page, (): Page => "main");
+  await $.ui.open({
+    id: PANE,
+    title: "Cache warmer",
+    rows: 14,
+    focus: true,
+    closeOnEscape: true,
+  });
+  await syncAnimation($);
+  return { text: "Cache warmer opened." };
 };
 
 // A prompt is kept when it read an entry that would have expired without the
@@ -891,14 +871,25 @@ const setIdleFromConfig = async (
   return answer;
 };
 
-const dataOf = async (
+const renderBand = async (
   $: EngineInterface,
-  width: number,
-  rows: number,
-): Promise<PaneData> => {
+  e: Frozen<MatchedEvent<"ui.render", { component: "AbovePrompt" }>>,
+) => {
+  const shown = await read($, notice);
+  if (!shown || e.props.hasSurvey || !(await read($, isBandShown)))
+    return undefined;
+  return bandOf($.ui.resolve(e), shown);
+};
+
+const renderPane = async (
+  $: EngineInterface,
+  e: Frozen<
+    MatchedEvent<"ui.render", { component: "Pane"; requestId: typeof PANE }>
+  >,
+) => {
   const shown = await read($, page);
   const debugOn = await read($, isDebug);
-  return {
+  const data: PaneData = {
     page: shown,
     chosen: await read($, ttl),
     saved: await read($, defaultTtl),
@@ -913,43 +904,9 @@ const dataOf = async (
     list: await read($, refreshes),
     logPath: shown === "main" && debugOn ? await debugPathOf($) : "",
     at: Math.max(await read($, now), await $.clock.now()),
-    width,
-    rows,
+    width: e.props.bodyColumns,
+    rows: e.props.scroll.bodyRows,
   };
-};
-
-const actionsOf = ($: EngineInterface): PaneActions => ({
-  open: (next) => void update($, page, () => next),
-  close: () => void setMenu($, "closed"),
-  toggleDebug: () => void toggleDebug($),
-  toggleBand: () => void toggleBand($),
-  chooseDefault: (value) => void chooseDefault($, value),
-  chooseSession: (value) => void chooseSessionTtl($, value),
-  setLimit: (limitTtl, count) => void setLimit($, limitTtl, count),
-});
-
-// The open bar holds the notice in its status row; otherwise the notice is the band.
-const renderBand = async (
-  $: EngineInterface,
-  e: Frozen<MatchedEvent<"ui.render", { component: "AbovePrompt" }>>,
-) => {
-  if (e.props.hasSurvey) return undefined;
-  const shown = (await read($, isBandShown)) ? await read($, notice) : null;
-  if (await read($, isBarOpen)) {
-    const data = await dataOf($, e.props.bodyColumns, e.props.maxRows);
-    return barOf($.ui.resolve(e), data, actionsOf($), shown);
-  }
-  return shown ? bandOf($.ui.resolve(e), shown) : undefined;
-};
-
-const renderPane = async (
-  $: EngineInterface,
-  e: Frozen<
-    MatchedEvent<"ui.render", { component: "Pane"; requestId: typeof PANE }>
-  >,
-) => {
-  const data = await dataOf($, e.props.bodyColumns, e.props.scroll.bodyRows);
-  const shown = data.page;
   let mascot: Mascot | undefined;
   sites.delete(PANE);
   const scene = await sceneOf($);
@@ -961,7 +918,15 @@ const renderPane = async (
     const cells = mascotOf(scene, data.at, background);
     mascot = { raster: rasterOf($.ui.resolve(e), cells), layout };
   }
-  return paneOf($.ui.resolve(e), data, actionsOf($), mascot);
+  const actions: PaneActions = {
+    open: (next) => void update($, page, () => next),
+    toggleDebug: () => void update($, isDebug, (current) => !current),
+    toggleBand: () => void toggleBand($),
+    chooseDefault: (value) => void chooseDefault($, value),
+    chooseSession: (value) => void chooseSessionTtl($, value),
+    setLimit: (limitTtl, count) => void setLimit($, limitTtl, count),
+  };
+  return paneOf($.ui.resolve(e), data, actions, mascot);
 };
 
 export const register: Register = (on, options) => {

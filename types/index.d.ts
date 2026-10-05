@@ -99,8 +99,6 @@ declare module "claude-code" {
       isDebug: boolean;
       // While on, the band above the prompt shows each refresh.
       isBandShown: boolean;
-      // While on, the menu is the bar above the prompt; Debug mode moves it to the pane.
-      isBarOpen: boolean;
       page: Page;
       refreshes: Refresh[];
       status: Status;

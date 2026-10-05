@@ -6,7 +6,6 @@ import {
   MINUTE,
   SONNET,
   mountPane,
-  openPane,
   start,
   toggle,
   turnUsage,
@@ -27,7 +26,7 @@ test("the open pane animates Clawd beside the menu, not on a sub-page, until it 
   await start($);
   await prompt($, "t1");
   await clock.advance(30 * MINUTE);
-  await openPane($);
+  await toggle($);
   const desktop = await mountPane($, "desktop");
   expect(await desktop.find({ type: "Raster" })).toBeUndefined();
   await desktop.unmount();
@@ -58,11 +57,12 @@ test("Clawd stands beside the menu in a wide pane, above it in a narrow tall one
   await start($);
   await prompt($, "t1", turnUsage(SONNET, 299_000, 1000));
   await toggle($);
-  // At 60 columns 30 stay beside Clawd, where the stop reason wraps to five rows under the seven of the header and menu.
-  // At 59 Clawd and a blank row stand above those seven and the reason's three rows.
+  // At 60 columns 30 stay beside Clawd, who needs his seven rows; the column beside him scrolls.
+  // At 59 Clawd and a blank row stand above the seven rows of the header and menu and the reason's three rows.
   for (const [columns, bodyRows, direction] of [
     [60, 12, "row"],
-    [60, 11, undefined],
+    [60, 7, "row"],
+    [60, 6, undefined],
     [59, 18, "column"],
     [59, 17, undefined],
     [27, 40, undefined],
@@ -95,7 +95,7 @@ for (const [theme, colors, drawn, background] of [
       rowOf("theme", theme),
     ]);
     await start($);
-    await openPane($);
+    await toggle($);
     const pane = await mountPane($, "terminal");
     expect(
       (await pane.find({ type: "Raster", key: "mascot" }))?.props,

@@ -20,7 +20,7 @@ const clear = {
 } as const;
 
 test("each menu item opens its page, Back returns to the menu, and reopening starts there", async ($, on) => {
-  world(on);
+  world(on, { HOME: "/home/t" });
   await start($);
   await toggle($);
   const pane = await mountPane($, "terminal");
@@ -160,7 +160,7 @@ test(
 );
 
 test("the Debug mode item toggles in place; while on, a JSON line per refresh and per stop goes to the session's log", async ($, on) => {
-  const { clock, files, prompt, writes } = world(on);
+  const { clock, files, prompt, writes } = world(on, { HOME: "/home/t" });
   on("session.end", (_, e) => ({ sessionId: e.sessionId }));
   await start($);
   await prompt($, "t1");

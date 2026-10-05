@@ -86,28 +86,34 @@ test("idle warming stops after five idle refreshes; a prompt within their reach 
   await toggle($);
   await prompt($, "t2", turnUsage(OPUS, 200_000, 50));
   expect((await toggle($)).text).toBe("Cache warmer opened.");
-  expect(opened).toHaveLength(0);
-  const bar = await mountBand($);
-  expect(
-    await bar.find({
-      text: /^Next refresh in 4m30s · idle · expected saving \$0\.10$/,
-    }),
-  ).toBeDefined();
-  await bar.press({ key: "menu:analytics" });
-  // Five refreshes cost 5 * $0.043852; the kept prompt read 200k tokens, a $0.96 rewrite avoided.
-  for (const row of [
-    /^Refreshes +5 +5$/,
-    /^Warming fee +\$0\.22 +\$0\.22$/,
-    /^Prompts kept +1 +1$/,
-    /^Rewrites avoided +\$0\.96 +\$0\.96$/,
-    /^Net saved +\$0\.74 +\$0\.74$/,
-  ])
-    expect(await bar.find({ text: row })).toBeDefined();
-  await bar.press({ key: "menu:analytics" });
-  expect(await bar.find({ text: /^Next refresh in/ })).toBeDefined();
+  expect(opened.at(-1)).toEqual({
+    id: "cache-warmer",
+    title: "Cache warmer",
+    rows: 14,
+    focus: true,
+    closeOnEscape: true,
+  });
+  for (const surface of ["terminal", "desktop"] as const) {
+    const pane = await mountPane($, surface);
+    expect(
+      await pane.find({
+        text: /^Next refresh in 4m30s · idle · expected saving \$0\.10$/,
+      }),
+    ).toBeDefined();
+    await pane.press({ key: "menu:analytics" });
+    // Five refreshes cost 5 * $0.043852; the kept prompt read 200k tokens, a $0.96 rewrite avoided.
+    for (const row of [
+      /^Refreshes +5 +5$/,
+      /^Warming fee +\$0\.22 +\$0\.22$/,
+      /^Prompts kept +1 +1$/,
+      /^Rewrites avoided +\$0\.96 +\$0\.96$/,
+      /^Net saved +\$0\.74 +\$0\.74$/,
+    ])
+      expect(await pane.find({ text: row })).toBeDefined();
+    await pane.press({ key: "back" });
+    await pane.unmount();
+  }
   expect((await toggle($)).text).toBe("Cache warmer closed.");
-  expect(await bar.find({ key: "menu:global" })).toBeUndefined();
-  await bar.unmount();
   expect(panes.size).toBe(0);
 });
 
