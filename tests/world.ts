@@ -176,7 +176,7 @@ export const world = (
   store: Record<string, AllTime> = {},
 ) => {
   const clock = mock.clock(on, { now: START });
-  mock.env(on, env);
+  mock.env(on, { HOME: "/home/t", ...env });
   const { stored, holdStoreSet } = stubStore(on, store);
   const { files, writes } = stubFiles(on);
   on("session.id", () => ({ value: SESSION_ID }));
@@ -231,6 +231,14 @@ export const COMMAND = {
 
 export const toggle = ($: Engine) =>
   $.command.run({ ...COMMAND, command: "cache-warmer", args: "" });
+
+// Debug mode moves the menu from the bar to the pane.
+export const openPane = async ($: Engine) => {
+  await toggle($);
+  const bar = await mountBand($);
+  await bar.press({ key: "menu:debug" });
+  await bar.unmount();
+};
 
 export const mountPane = (
   $: Engine,

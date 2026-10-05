@@ -45,6 +45,7 @@ export type PaneData = {
 
 export type PaneActions = {
   open: (page: Page) => void;
+  close: () => void;
   toggleDebug: () => void;
   toggleBand: () => void;
   chooseDefault: (value: Ttl) => void;
@@ -131,7 +132,7 @@ export const bandOf = (
   </Text>
 );
 
-// Every sub-page opens with the Back button, which holds the focus first, and its title.
+// Every sub-page opens with the Back button and its title; in the pane, Back takes the focus first.
 export const headerOf = (
   { Box, Text, Button }: ElementTable,
   title: string,

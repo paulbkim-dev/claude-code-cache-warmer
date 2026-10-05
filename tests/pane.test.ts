@@ -6,6 +6,7 @@ import {
   MINUTE,
   SONNET,
   mountPane,
+  openPane,
   start,
   toggle,
   turnUsage,
@@ -26,7 +27,7 @@ test("the open pane animates Clawd beside the menu, not on a sub-page, until it 
   await start($);
   await prompt($, "t1");
   await clock.advance(30 * MINUTE);
-  await toggle($);
+  await openPane($);
   const desktop = await mountPane($, "desktop");
   expect(await desktop.find({ type: "Raster" })).toBeUndefined();
   await desktop.unmount();
@@ -94,7 +95,7 @@ for (const [theme, colors, drawn, background] of [
       rowOf("theme", theme),
     ]);
     await start($);
-    await toggle($);
+    await openPane($);
     const pane = await mountPane($, "terminal");
     expect(
       (await pane.find({ type: "Raster", key: "mascot" }))?.props,

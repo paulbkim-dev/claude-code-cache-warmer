@@ -48,7 +48,7 @@ claude plugin marketplace add paulbkim-dev/claude-code-cache-warmer
 claude plugin install cache-warmer@claude-code-cache-warmer
 ```
 
-Claude Code를 다시 시작한 뒤 `/cache-warmer`를 입력하면 패널이 열려요.
+Claude Code를 다시 시작한 뒤 `/cache-warmer`를 입력하면 메뉴 바가 열려요.
 캐시 유지를 모두 멈추려면 `claude plugin disable cache-warmer`를 실행하세요.
 
 <br>
@@ -59,7 +59,7 @@ Claude Code를 다시 시작한 뒤 `/cache-warmer`를 입력하면 패널이 �
 캐시 시간을 색으로 보여 주고(`5m` 청록, `1h` 자홍), 갱신 간격과 결과도 보여 줘요. 갱신 중에는 노랑, 캐시가 따뜻하면 초록, 만료되거나 실패하면 빨강이에요.
 띠는 갱신이 끝나고 5초 뒤에 사라져요.
 
-패널에는 Claude Code 마스코트 Clawd가 나타나요.
+Debug mode 패널에는 Claude Code 마스코트 Clawd가 나타나요.
 
 | Clawd | 뜻 |
 |---|---|
@@ -75,20 +75,25 @@ Claude Code를 다시 시작한 뒤 `/cache-warmer`를 입력하면 패널이 �
 
 <br>
 
-## 패널
+## 메뉴
 
-`/cache-warmer`로 이 메뉴가 있는 패널을 열고 닫아요.
+`/cache-warmer`로 프롬프트 위의 메뉴 바를 열고 닫아요.
 
 ```text
-Global configuration    새 세션에 쓸 기본값
-Session configuration   지금 세션에만 쓸 설정
-Analytics               비용과 절약액
-Debug mode              켜기와 끄기
+Cache Warmer  Global  Session  Analytics  Debug · off  ✕ Close
+Next refresh in 3m37s · idle · expected saving $0.05
 ```
 
-- Tab과 화살표 키로 항목 사이를 옮겨요. Enter로 페이지를 열거나 Debug mode를 켜고 꺼요. 각 페이지 맨 위에는 Back 버튼이 있어요.
-- 패널에 포커스가 있거나, 진행 중인 턴이 없고 프롬프트 입력란이 비어 있으면 Escape로 패널을 닫아요.
-- 메뉴 아래 한 줄에 다음 갱신 시각이나 캐시 유지가 멈춘 이유가 나와요.
+| 항목 | 내용 |
+|---|---|
+| Global | 새 세션에 쓸 기본값 |
+| Session | 지금 세션에만 쓸 설정 |
+| Analytics | 비용과 절약액 |
+| Debug | 메뉴를 Clawd와 갱신 기록이 있는 옆 패널로 옮겨요 |
+
+- 항목을 클릭하거나, ctrl+x tab으로 바에 포커스를 준 뒤 Tab과 Enter를 써요. 페이지는 바 아래에 열리고, 같은 항목이나 Back으로 닫아요.
+- 바 아래 줄에 다음 갱신 시각, 캐시 유지가 멈춘 이유, 또는 갱신 알림이 나와요.
+- Debug mode가 켜져 있으면 `/cache-warmer`는 옆 패널을 열어요. 패널에 포커스가 있거나, 진행 중인 턴이 없고 프롬프트 입력란이 비어 있으면 Escape로 패널을 닫아요. Debug mode를 끄면 메뉴가 다시 바로 돌아와요.
 
 <br>
 
@@ -143,7 +148,7 @@ flowchart TD
 
 ## Debug mode
 
-디버그 모드가 켜져 있으면 메뉴 아래에 최근 갱신이 경과 시간, 결과, 토큰, 비용, 예상 절약액과 함께 나와요.
+디버그 모드가 켜져 있으면 메뉴가 옆 패널로 옮겨지고, 그 아래에 최근 갱신이 경과 시간, 결과, 토큰, 비용, 예상 절약액과 함께 나와요.
 갱신과 멈춤마다 JSON 한 줄도 `<config>/cache-warmer/debug/<session id>.jsonl`에 덧붙여요. `<config>`는 `CLAUDE_CONFIG_DIR` 또는 `~/.claude`예요.
 
 > ⚠️ 이 모드는 `/rewind`를 알아채지 못해요.
@@ -156,7 +161,7 @@ flowchart TD
 갱신 요청은 모드가 자동으로 보내요.
 각 갱신은 메인 대화의 마지막 요청을 포크한 것이고, 같은 모델에 이 프롬프트를 담아 보내요.
 
-> Prompt cache refresh. Reply with the single word ok.
+> [cache-warmer] Automated prompt cache refresh by the cache-warmer plugin, not a message from the user. Reply with the single word ok.
 
 | | |
 |---|---|
