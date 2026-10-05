@@ -183,6 +183,9 @@ test("the first response locks the session's lifetime until /clear; the command 
     await locked.find({ text: "  locked: /clear or a new session unlocks it" }),
   ).toBeDefined();
   expect(await locked.find({ key: "toggle:ttl" })).toBeUndefined();
+  expect(
+    await locked.find({ text: "Enter toggles a setting." }),
+  ).toBeUndefined();
   await locked.unmount();
   await $.session.end({
     reason: "clear",

@@ -87,6 +87,7 @@ test("the Global page saves the default lifetime even when locked; this session 
   expect(await pane.find({ key: "toggle:default" })).toMatchObject({
     props: { label: "○ 5m  ● 1h" },
   });
+  expect(await pane.find({ text: "Enter toggles a setting." })).toBeDefined();
   // /config saves it too, without the refusal 0.5 gave.
   const answer = await $.config.set({
     key: "cache-warmer.ttl",

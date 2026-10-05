@@ -32,6 +32,8 @@ const toggleOf = <T extends string | boolean>(
   />
 );
 
+const TOGGLE_HINT = "Enter toggles a setting.";
+
 const GLOBAL_LABELS = {
   default: "Default lifetime",
   band: "Refresh band",
@@ -95,6 +97,9 @@ const globalPageOf = (
           </Text>
         </Box>
       ))}
+      <Text key="hint" dimColor>
+        {TOGGLE_HINT}
+      </Text>
       <Text key="note" dimColor>
         {`Saved for new sessions. Each refresh still needs Pi's ${formatUsd(MIN_SAVINGS_USD)} expected saving.`}
       </Text>
@@ -125,6 +130,11 @@ const sessionPageOf = (
           <Text dimColor>{"  locked: /clear or a new session unlocks it"}</Text>
         )}
       </Box>
+      {!isLocked && (
+        <Text key="hint" dimColor>
+          {TOGGLE_HINT}
+        </Text>
+      )}
       <Text key="interval" dimColor>
         {`Refreshes every ${formatDuration(delayOf(effective))} · idle limit ${limits[effective]} refreshes`}
       </Text>
