@@ -1,0 +1,12 @@
+{
+  "name": "claude-code-cache-warmer",
+  "description": "Cache Warmer, a Claude Code mod that keeps the prompt cache warm",
+  "owner": { "name": "Paul B. Kim" },
+  "plugins": [
+    {
+      "name": "cache-warmer",
+      "source": "./",
+      "description": "Keep the main conversation's prompt cache warm by automatically forking its last request, tools denied and billed like any request, shortly before the cache expires; switch its lifetime between 5m and 1h, and show each refresh's cost and estimated saving"
+    }
+  ]
+}

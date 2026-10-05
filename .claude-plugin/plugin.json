@@ -1,0 +1,38 @@
+{
+  "name": "cache-warmer",
+  "version": "0.6.1",
+  "description": "Keep the main conversation's prompt cache warm by automatically forking its last request, tools denied and billed like any request, shortly before the cache expires; switch its lifetime between 5m and 1h, and show each refresh's cost and estimated saving.",
+  "author": {
+    "name": "Paul B. Kim"
+  },
+  "homepage": "https://github.com/paulbkim-dev/claude-code-cache-warmer",
+  "repository": "https://github.com/paulbkim-dev/claude-code-cache-warmer",
+  "license": "MIT",
+  "keywords": ["prompt-cache", "cache", "cost", "mod"],
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "ttl": {
+      "type": "string",
+      "title": "Prompt cache lifetime",
+      "description": "Main-conversation cache lifetime this mod sets; refreshes run at 90% of it. 1h writes cost 2x input instead of 1.25x.",
+      "default": "5m",
+      "options": ["5m", "1h"]
+    },
+    "idle5m": {
+      "type": "number",
+      "title": "Idle refreshes, 5m",
+      "description": "Refreshes a 5-minute cache gets while the session is idle, 0 to 20; each still needs the $0.05 expected saving.",
+      "default": 5,
+      "min": 0,
+      "max": 20
+    },
+    "idle1h": {
+      "type": "number",
+      "title": "Idle refreshes, 1h",
+      "description": "Refreshes a 1-hour cache gets while the session is idle, 0 to 20; each still needs the $0.05 expected saving.",
+      "default": 5,
+      "min": 0,
+      "max": 20
+    }
+  }
+}
