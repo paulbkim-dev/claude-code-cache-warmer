@@ -40,7 +40,7 @@ flowchart LR
 
 <br>
 
-## 🚀 Install
+## Install
 
 1. Add the marketplace and install the mod:
 
@@ -56,7 +56,7 @@ flowchart LR
 
 <br>
 
-## 👀 What you see
+## What you see
 
 During a refresh, a band above the prompt shows Clawd, the Claude Code mascot.
 
@@ -74,7 +74,7 @@ During a refresh, a band above the prompt shows Clawd, the Claude Code mascot.
 
 <br>
 
-## 🧭 The pane
+## The pane
 
 `/cache-warmer` opens and closes a pane. The pane opens on this menu:
 
@@ -86,26 +86,15 @@ During a refresh, a band above the prompt shows Clawd, the Claude Code mascot.
 └── 🐞 Debug mode              a list of recent refreshes
 ```
 
-- ⌨️ Tab and the arrow keys move between items. Enter opens an item.
-- 🎯 When the pane takes the keyboard, the first item has the focus.
-- ↩️ Each page starts with a Back button, which goes back to the menu. The pane always opens again on the menu.
-- ⎋ Escape closes the pane when the pane has keyboard focus, or when the prompt is idle and empty.
-- ⏰ Below the menu, one line shows the time of the next refresh, or the reason why warming stopped.
-
-### 🎨 Clawd and the theme
-
-When the terminal pane has space, Clawd stands to the left of the menu.
-Clawd plays the band's notice while one shows, sips while warming is on, and dozes after warming stops.
-
-The mug and the steam follow the Claude Code theme.
-A light theme draws them for a light background.
-With the `auto` theme, a light background in `COLORFGBG` does the same.
-Under `auto`, Claude Code also asks the terminal for its background, but plugins cannot read the answer.
-Thus a terminal that does not set `COLORFGBG` gets the dark colors.
+- Tab and the arrow keys move between items. Enter opens an item.
+- When the pane takes the keyboard, the first item has the focus.
+- Each page starts with a Back button, which goes back to the menu. The pane always opens again on the menu.
+- Escape closes the pane when the pane has keyboard focus, or when the prompt is idle and empty.
+- Below the menu, one line shows the time of the next refresh, or the reason why warming stopped.
 
 <br>
 
-## ⚙️ Settings
+## Settings
 
 | Page | What it changes |
 |---|---|
