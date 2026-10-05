@@ -20,6 +20,7 @@ import type {
   BandStyle,
   IdleLimits,
   Notice,
+  NoticeEnding,
   Page,
   Refresh,
   Status,
@@ -135,6 +136,10 @@ const warming = atom({ plugin: "cache-warmer", key: "warming" } as const, {
 let timer: Timer | undefined;
 let animation: Timer | undefined;
 let hideNotice: Timer | undefined;
+// Notices shown and prompts started this process: a timer ends only the notice
+// it was set for, and a held notice goes with the next prompt.
+let notices = 0;
+let prompts = 0;
 let previewSteps: Timer[] = [];
 let isStill = false;
 // Claude Code's theme, "auto" resolved to "light" or "dark".
@@ -271,6 +276,7 @@ const stopChain = async (
 // The anchor is read last, so the timer is set from the anchor as it stands:
 // a refresh that settled while an earlier read waited cannot leave a stale one.
 const schedule = async ($: EngineInterface) => {
+  const prompt = prompts;
   const limits = await read($, idleLimits);
   const at = await $.clock.now();
   const { anchor: current, isRunning, outputTokens } = await read($, warming);
@@ -285,8 +291,16 @@ const schedule = async ($: EngineInterface) => {
       `${formatDuration(horizon)} run limit reached`,
     );
   const limit = limits[current.ttl];
-  if (phase === "idle" && current.idleRefreshes >= limit)
-    return stopChain($, current.at, `${limit} idle refreshes reached`);
+  if (phase === "idle" && current.idleRefreshes >= limit) {
+    const isStopped = await stopChain(
+      $,
+      current.at,
+      `${limit} idle refreshes reached`,
+    );
+    // A limit of 0 turned idle warming off on purpose; it needs no warning.
+    if (isStopped && limit > 0) await warnIdleLimit($, current, limit, prompt);
+    return isStopped;
+  }
   const decision = decide(
     current.model,
     current.promptTokens,
@@ -346,11 +360,11 @@ const mascotOf = (scene: Scene, at: number, background: number) => {
       );
 };
 
-// The pane plays the notice while one is up, and otherwise the
+// The pane plays the notice while one moves, and otherwise the
 // warmer's state: Clawd sips while it warms and dozes once it stopped.
 const sceneOf = async ($: EngineInterface): Promise<Scene> => {
-  const shown = await read($, notice);
-  if (shown) return shown;
+  const shown = await liveNoticeOf($);
+  if (shown && shown.heldAt === null) return shown;
   const isStopped = (await read($, status)).state === "stopped";
   return {
     mood: isStopped ? "cold" : "warming",
@@ -380,13 +394,15 @@ const paint = async ($: EngineInterface) => {
   }
 };
 
-// Frames run while the pane is open or the band shows Clawd with a notice.
+// Frames run while the pane is open or the band shows Clawd moving with a notice.
 // A theme change shows from the next start. The latest call decides: one that
 // a later call overtook while it waited leaves the timer alone.
 const syncAnimation = async ($: EngineInterface) => {
   const call = ++syncs;
+  const shown = await liveNoticeOf($);
   const isShown =
-    ((await read($, notice)) !== null &&
+    (shown !== null &&
+      shown.heldAt === null &&
       (await read($, bandStyle)) === "default") ||
     (await isPaneOpen($));
   const resolved = isShown && !animation ? await themeOf($) : theme;
@@ -399,26 +415,95 @@ const syncAnimation = async ($: EngineInterface) => {
     animation = $.clock.every(FRAME_MS, () => void paint($));
 };
 
-const clearNotice = async ($: EngineInterface) => {
-  await update($, notice, () => null);
+// A fading notice goes; a held one keeps Clawd on the frame he reached and
+// stops the frames. A notice shown since the timer was set is left alone.
+const endNotice = async (
+  $: EngineInterface,
+  shownAs: number,
+  ending: NoticeEnding,
+) => {
+  const at = await $.clock.now();
+  await update($, notice, (current) => {
+    if (!current || shownAs !== notices) return current;
+    return ending === "fades" ? null : { ...current, heldAt: at };
+  });
   await syncAnimation($);
 };
 
 const showNotice = async (
   $: EngineInterface,
   shown: Pick<Notice, "ttl" | "head" | "detail" | "mood">,
-  isDone: boolean,
+  ending: NoticeEnding,
+  prompt = prompts,
 ) => {
   hideNotice?.cancel();
   hideNotice = undefined;
+  const shownAs = ++notices;
   const at = await $.clock.now();
   await update($, notice, (current): Notice => ({
     ...shown,
+    ending,
     startedAt: current?.startedAt ?? at,
     since: current?.mood === shown.mood ? current.since : at,
+    heldAt: null,
+    prompt,
   }));
   await syncAnimation($);
-  if (isDone) hideNotice = $.clock.after(NOTICE_MS, () => void clearNotice($));
+  if (ending !== "stays" && shownAs === notices)
+    hideNotice = $.clock.after(
+      NOTICE_MS,
+      () => void endNotice($, shownAs, ending),
+    );
+};
+
+// The notice on show: a held one from before the latest prompt is gone, even
+// when it was written after that prompt cleared the notice.
+const liveNoticeOf = async ($: EngineInterface) => {
+  const shown = await read($, notice);
+  return shown && (shown.ending !== "holds" || shown.prompt === prompts)
+    ? shown
+    : null;
+};
+
+// An outcome reached while a turn runs fades; one in an idle session holds until the next prompt.
+const outcomeEndingOf = async ($: EngineInterface): Promise<NoticeEnding> =>
+  (await read($, warming)).isRunning ? "fades" : "holds";
+
+// A notice row: the transcript file keeps it, and no request carries it.
+const appendNotice = async ($: EngineInterface, text: string) => {
+  try {
+    await $.session.append({
+      message: { type: "system", content: [{ type: "text", text }] },
+    });
+  } catch (error) {
+    $.ui.log(
+      `Cache warmer could not record the refresh: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+};
+
+// The last idle refresh warmed the cache once more; after it no refresh comes,
+// and the cache expires a lifetime after it.
+const warnIdleLimit = async (
+  $: EngineInterface,
+  current: Anchor,
+  limit: number,
+  prompt: number,
+) => {
+  // A prompt since the stop restarted warming, so nothing has stopped.
+  if (prompt !== prompts) return;
+  const expiresAt = new Date(current.lastAt + TTL_MS[current.ttl])
+    .toTimeString()
+    .slice(0, 5);
+  const head = "Warming stopped";
+  const detail = `all ${limit} idle refreshes used · cache expires at ${expiresAt}`;
+  await showNotice(
+    $,
+    { ttl: current.ttl, head, detail, mood: "cold" },
+    "holds",
+    prompt,
+  );
+  await appendNotice($, `☕ ${current.ttl} · ${head} · ${detail}`);
 };
 
 const record = async (
@@ -497,6 +582,7 @@ const settle = async (
   phase: "run" | "idle",
   missUsd: number,
   reply: ForkReply,
+  prompt: number,
 ) => {
   const usage = usageOf(reply.usage);
   // The fork's own write is its short tail; pricing it at the entry's lifetime overstates it at most.
@@ -514,6 +600,7 @@ const settle = async (
   };
   await record($, entry, phase, current.ttl);
   const { head, detail } = noticeOf(entry);
+  await appendNotice($, `☕ ${current.ttl} · ${head} · ${detail}`);
   await showNotice(
     $,
     {
@@ -522,25 +609,12 @@ const settle = async (
       detail,
       mood: entry.result === "warmed" ? "warmed" : "cold",
     },
-    true,
+    await outcomeEndingOf($),
+    prompt,
   );
-  // A prompt that arrived during the fork set a new anchor and its own timer.
+  // A prompt that arrived during the fork set a new anchor and its own timer;
+  // the last idle refresh's warning replaces its notice.
   await chain($, current, entry, phase);
-  // A notice row: the transcript file keeps the refresh, and no request carries it.
-  try {
-    await $.session.append({
-      message: {
-        type: "system",
-        content: [
-          { type: "text", text: `☕ ${current.ttl} · ${head} · ${detail}` },
-        ],
-      },
-    });
-  } catch (error) {
-    $.ui.log(
-      `Cache warmer could not record the refresh: ${error instanceof Error ? error.message : String(error)}`,
-    );
-  }
 };
 
 const forkFor = async (
@@ -549,6 +623,7 @@ const forkFor = async (
   phase: "run" | "idle",
   outputTokens: number,
 ) => {
+  const prompt = prompts;
   const at = await $.clock.now();
   if (at > deadlineOf(current.lastAt, current.ttl))
     return stopChain($, current.at, "refresh deadline missed");
@@ -572,18 +647,19 @@ const forkFor = async (
       detail: `resending the cached ${formatTokens(current.promptTokens)}-token prompt…`,
       mood: "warming",
     },
-    false,
+    "stays",
   );
   const reply = await $.model.fork({ prompt: FORK_PROMPT });
   if (!reply.isAnswered && reply.reason === "nothing-to-fork") {
     await showNotice(
       $,
       { ttl: current.ttl, head: "Nothing to warm", detail: "", mood: "cold" },
-      true,
+      await outcomeEndingOf($),
+      prompt,
     );
     return stopChain($, current.at, "nothing to refresh");
   }
-  await settle($, current, at, phase, decision.missUsd, reply);
+  await settle($, current, at, phase, decision.missUsd, reply, prompt);
 };
 
 // The refresh claims its anchor until chain() records it there, so a
@@ -751,7 +827,11 @@ const preview = async ($: EngineInterface) => {
   stopPreview();
   const shownTtl = await effectiveTtl($);
   const step = (head: string, mood: Notice["mood"], isDone: boolean) =>
-    showNotice($, { ttl: shownTtl, head, detail: "preview", mood }, isDone);
+    showNotice(
+      $,
+      { ttl: shownTtl, head, detail: "preview", mood },
+      isDone ? "fades" : "stays",
+    );
   await step("Refreshing cache", "warming", false);
   previewSteps = [
     $.clock.after(
@@ -854,11 +934,19 @@ const stepTurn = async function* (
   return result;
 };
 
+// The next prompt takes down an outcome held from before it; a refresh under
+// way, or a notice shown since, keeps its place. A held notice's timer finds it gone.
 const onTurnStart: Hook<"turn.start"> = async ($, e, next) => {
+  prompts += 1;
+  const prompt = prompts;
   await update($, warming, (current): Warming => ({
     ...current,
     isRunning: true,
   }));
+  await update($, notice, (current) =>
+    current?.ending === "holds" && current.prompt < prompt ? null : current,
+  );
+  await syncAnimation($);
   return next(e);
 };
 
@@ -901,7 +989,7 @@ const renderBand = async (
   $: EngineInterface,
   e: Frozen<MatchedEvent<"ui.render", { component: "AbovePrompt" }>>,
 ) => {
-  const shown = await read($, notice);
+  const shown = await liveNoticeOf($);
   const style = await read($, bandStyle);
   sites.delete(e.requestId);
   if (!shown || e.props.hasSurvey || style === "off") return undefined;
@@ -911,9 +999,11 @@ const renderBand = async (
     e.props.maxRows < MASCOT_ROWS
   )
     return bandOf($.ui.resolve(e), shown);
-  sites.set(e.requestId, TERMINAL_DEFAULT);
+  // A held notice draws the frame Clawd stopped on, and takes no blits.
+  if (shown.heldAt === null) sites.set(e.requestId, TERMINAL_DEFAULT);
   const elements = $.ui.resolve(e);
-  const cells = mascotOf(shown, await $.clock.now(), TERMINAL_DEFAULT);
+  const at = shown.heldAt ?? (await $.clock.now());
+  const cells = mascotOf(shown, at, TERMINAL_DEFAULT);
   return mascotBandOf(elements, shown, rasterOf(elements, cells));
 };
 

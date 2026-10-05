@@ -33,15 +33,25 @@ export type Status =
 // a warm one, dozing off over a cold mug after a failure or an expired cache.
 export type Mood = "warming" | "warmed" | "cold";
 
+// How a notice ends: a refresh under way stays until its outcome replaces it,
+// one during a turn fades after a few seconds, and one in an idle session
+// holds still from then on until the next prompt.
+export type NoticeEnding = "stays" | "fades" | "holds";
+
 // The band's line: `head` is the highlighted outcome and `detail` the dim rest.
-// `startedAt` is when the notice appeared and `since` when its mood began, in epoch milliseconds.
+// `startedAt` is when the notice appeared, `since` when its mood began and
+// `heldAt` when Clawd stopped moving in a held notice, in epoch milliseconds;
+// `prompt` counts the prompts before the refresh it tells of.
 export type Notice = {
   ttl: Ttl;
   head: string;
   detail: string;
   mood: Mood;
+  ending: NoticeEnding;
   startedAt: number;
   since: number;
+  heldAt: number | null;
+  prompt: number;
 };
 
 export type Totals = {

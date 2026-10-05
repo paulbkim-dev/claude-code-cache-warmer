@@ -5,6 +5,7 @@ import {
   OPUS,
   SONNET,
   MINUTE,
+  START,
   turnUsage,
   world,
   start,
@@ -40,8 +41,8 @@ test("the refresh decision follows Pi: idle prompts need 15% odds to clear $0.05
   ).toBeNull();
 });
 
-test("a response schedules a fork at 90% of the lifetime; the band shows its lifetime, cost and saving, then goes", async ($, on) => {
-  const { clock, envSets, forks, logged, prompt } = world(on);
+test("a response schedules a fork at 90% of the lifetime; the band shows its lifetime, cost and saving, holds still while idle and goes at the next prompt", async ($, on) => {
+  const { blits, clock, envSets, forks, logged, prompt } = world(on);
   await start($);
   expect(envSets).toEqual([["CLAUDE_CODE_PROMPT_CACHE_TTL", "5m"]]);
   await prompt($, "t1");
@@ -58,14 +59,20 @@ test("a response schedules a fork at 90% of the lifetime; the band shows its lif
   expect(logged).toEqual([
     "Cache warmer could not record the refresh: no implementation for session.append",
   ]);
-  await band.unmount();
   await clock.advance(5000);
-  const after = await mountBand($);
-  expect(await after.find({ text: /^☕ cache warmer / })).toBeUndefined();
-  expect(await after.find({ text: "engine band" })).toBeDefined();
-  await after.unmount();
-  await clock.advance(265_000);
+  expect((await band.find({ text: /^☕ cache warmer / }))?.text).toMatch(
+    /· Cache warmed ·/,
+  );
+  expect(await band.find({ type: "Raster" })).toBeDefined();
+  const painted = blits.length;
+  await clock.advance(1000);
+  expect(blits).toHaveLength(painted);
+  await clock.advance(264_000);
   expect(forks).toHaveLength(2);
+  await prompt($, "t2");
+  expect(await band.find({ text: /^☕ cache warmer / })).toBeUndefined();
+  expect(await band.find({ text: "engine band" })).toBeDefined();
+  await band.unmount();
 });
 
 test("idle warming stops after five idle refreshes; a prompt within their reach counts as kept", async ($, on) => {
@@ -75,6 +82,13 @@ test("idle warming stops after five idle refreshes; a prompt within their reach 
   // Refreshes at 4m30s intervals; the fifth, at 22m30s, reaches the default idle limit.
   await clock.advance(25 * MINUTE);
   expect(forks).toHaveLength(5);
+  // Its warning holds until the next prompt, with the cache's expiry 5m after it.
+  const band = await mountBand($);
+  const expiresAt = new Date(START + 27.5 * MINUTE).toTimeString().slice(0, 5);
+  expect((await band.find({ text: /^☕ cache warmer / }))?.text).toBe(
+    `☕ cache warmer 5m every 4m30s · Warming stopped · all 5 idle refreshes used · cache expires at ${expiresAt}`,
+  );
+  await band.unmount();
   await toggle($);
   const stopped = await mountPane($, "terminal");
   expect(

@@ -57,7 +57,8 @@ To stop all warming, run `claude plugin disable cache-warmer`.
 
 During a refresh, a band above the prompt shows Clawd, the Claude Code mascot, beside a notice that the mod is resending the cached prompt.
 It shows the cache time in color (`5m` cyan, `1h` magenta), the refresh interval, and the outcome: yellow while the refresh runs, green when the cache is warm, and red when it expired or failed.
-The band goes 5 seconds after the refresh.
+During a turn, the band goes 5 seconds after the refresh.
+In an idle session it stays until your next prompt, with Clawd still after 5 seconds.
 The pane's main page shows Clawd too.
 
 - The refresh never enters the conversation. The transcript keeps one notice row per refresh, starting with ☕, and no request sends it to the model.
@@ -128,6 +129,7 @@ The stop reason shows both sizes.
 
 While the session is idle, each cache time gets at most its **idle limit** of refreshes after the last prompt.
 The limit is 0 to 20, 5 by default, set on the Configuration page or in `cache-warmer.idle5m` and `cache-warmer.idle1h`.
+When the last idle refresh is used, the band warns that warming stopped and shows when the cache expires, until your next prompt.
 While a turn runs, warming stops 60 minutes after the last prompt, or after two cache times if that is longer.
 
 Warming also stops after compaction, `/clear`, a model change, a failed or expired refresh, or a timer that fired too late.
