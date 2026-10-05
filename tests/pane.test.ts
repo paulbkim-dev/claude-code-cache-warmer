@@ -52,20 +52,29 @@ test("the open pane animates Clawd beside the menu, not on a sub-page, until it 
   await pane.unmount();
 });
 
-test("a pane too narrow or too short for the menu beside Clawd leaves him out", async ($, on) => {
+test("Clawd stands beside the menu in a wide pane, above it in a narrow tall one, and nowhere when rows run out", async ($, on) => {
   const { prompt } = world(on);
   await start($);
   await prompt($, "t1", turnUsage(SONNET, 299_000, 1000));
   await toggle($);
-  // At 78 columns 48 stay beside Clawd, where the stop reason wraps to three rows under the six of the menu.
-  for (const [columns, bodyRows, isDrawn] of [
-    [77, 20, false],
-    [78, 8, false],
-    [78, 9, true],
+  // At 60 columns 30 stay beside Clawd, where the stop reason wraps to five rows under the seven of the header and menu.
+  // At 59 Clawd and a blank row stand above those seven and the reason's three rows.
+  for (const [columns, bodyRows, direction] of [
+    [60, 12, "row"],
+    [60, 11, undefined],
+    [59, 18, "column"],
+    [59, 17, undefined],
+    [27, 40, undefined],
   ] as const) {
     const pane = await mountPane($, "terminal", { columns, bodyRows });
     expect(await pane.find({ text: /^Stopped: 300\.0k tokens/ })).toBeDefined();
-    expect((await pane.find({ type: "Raster" })) !== undefined).toBe(isDrawn);
+    expect((await pane.find({ type: "Raster" })) !== undefined).toBe(
+      direction !== undefined,
+    );
+    if (direction)
+      expect(await pane.find({ type: "Box" })).toMatchObject({
+        props: { flexDirection: direction },
+      });
     await pane.unmount();
   }
 });

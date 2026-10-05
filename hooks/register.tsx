@@ -30,7 +30,7 @@ import type {
 import { MASCOT_ROWS, TERMINAL_DEFAULT, cellsOf } from "./mascot";
 import { paneOf } from "./pages";
 import type { PaneActions, PaneData } from "./pane";
-import { MASCOT_KEY, bandOf, fitsMascot, plainBandOf, rasterOf } from "./pane";
+import { MASCOT_KEY, bandOf, layoutOf, plainBandOf, rasterOf } from "./pane";
 import type { ForkReply } from "./warmer";
 import {
   DEFAULT_OUTPUT_TOKENS,
@@ -641,12 +641,6 @@ const setLimit = async ($: EngineInterface, limitTtl: Ttl, count: number) => {
   if ((await read($, status)).state === "scheduled") await schedule($);
 };
 
-// Turning debug mode on opens its page; turning it off returns to the menu.
-const setDebug = async ($: EngineInterface, isOn: boolean) => {
-  await update($, isDebug, () => isOn);
-  await update($, page, (): Page => (isOn ? "debug" : "main"));
-};
-
 const tick = async ($: EngineInterface) => {
   if (!(await isPaneOpen($))) return;
   const at = await $.clock.now();
@@ -664,6 +658,10 @@ const migrate = async ($: EngineInterface) => {
       feeUsd: current.anchor.feeUsd ?? 0,
     },
   }));
+  // 0.6.3's Debug page is now the menu's toggle.
+  await update($, page, (current) =>
+    ["global", "session", "analytics"].includes(current) ? current : "main",
+  );
 };
 
 const startSession = async (
@@ -873,6 +871,7 @@ const renderPane = async (
   >,
 ) => {
   const shown = await read($, page);
+  const debugOn = await read($, isDebug);
   const data: PaneData = {
     page: shown,
     chosen: await read($, ttl),
@@ -880,12 +879,12 @@ const renderPane = async (
     limits: await read($, idleLimits),
     isForced: await read($, isForced),
     isLocked: await read($, isLocked),
-    isDebug: await read($, isDebug),
+    isDebug: debugOn,
     state: await read($, status),
     totals: await read($, totals),
     allTime: await read($, allTime),
     list: await read($, refreshes),
-    logPath: shown === "debug" ? await debugPathOf($) : "",
+    logPath: debugOn ? await debugPathOf($) : "",
     at: Math.max(await read($, now), await $.clock.now()),
     width: e.props.bodyColumns,
     rows: e.props.scroll.bodyRows,
@@ -893,12 +892,7 @@ const renderPane = async (
   let mascot: RenderElement | undefined;
   sites.delete(PANE);
   const scene = await sceneOf($, PANE);
-  if (
-    shown === "main" &&
-    e.surface === "terminal" &&
-    fitsMascot(data) &&
-    scene
-  ) {
+  if (shown === "main" && e.surface === "terminal" && layoutOf(data) && scene) {
     const background =
       e.props.placement === "dock" ? dockBackgroundOf(theme) : TERMINAL_DEFAULT;
     sites.set(PANE, background);
@@ -906,8 +900,7 @@ const renderPane = async (
   }
   const actions: PaneActions = {
     open: (next) => void update($, page, () => next),
-    openDebug: () => void setDebug($, true),
-    turnOffDebug: () => void setDebug($, false),
+    toggleDebug: () => void update($, isDebug, (current) => !current),
     chooseDefault: (value) => void chooseDefault($, value),
     chooseSession: (value) => void chooseSessionTtl($, value),
     setLimit: (limitTtl, count) => void setLimit($, limitTtl, count),

@@ -10,14 +10,16 @@ import type {
   Ttl,
 } from "../types";
 import { MASCOT_COLUMNS, MASCOT_ROWS } from "./mascot";
-import { formatDuration, formatUsd } from "./warmer";
+import { formatDuration, formatTokens, formatUsd } from "./warmer";
 
 export const MASCOT_KEY = "mascot";
-// Clawd sits left of the main page's column when this many columns, the repository link's, stay beside him.
-const SIDE_COLUMNS = 48;
+const REPOSITORY = "https://github.com/paulbkim-dev/claude-code-cache-warmer";
+// Clawd stands left of the main page's column when this many columns stay beside him, and above it in a narrower pane.
+const SIDE_COLUMNS = 30;
 const SIDE_GAP = 2;
-// The main page's column above its status line: title, link and four menu items.
-const MENU_ROWS = 6;
+// The main page's column above its status line: two header rows, a blank row and four menu items.
+const MENU_ROWS = 7;
+const COLUMN_GAP = "  ";
 
 export type PaneData = {
   page: Page;
@@ -40,15 +42,14 @@ export type PaneData = {
 
 export type PaneActions = {
   open: (page: Page) => void;
-  openDebug: () => void;
-  turnOffDebug: () => void;
+  toggleDebug: () => void;
   chooseDefault: (value: Ttl) => void;
   chooseSession: (value: Ttl) => void;
   setLimit: (ttl: Ttl, count: number) => void;
 };
 
-export const statusTextOf = (state: Status, at: number): string => {
-  if (state.state === "waiting") return "Waiting for the first response.";
+export const statusTextOf = (state: Status, at: number): string | undefined => {
+  if (state.state === "waiting") return undefined;
   if (state.state === "refreshing") return "Refreshing now.";
   if (state.state === "stopped")
     return `Stopped: ${state.reason}. The next prompt restarts warming.`;
@@ -70,6 +71,23 @@ export const rowsOf = (text: string, width: number) => {
     used = word.length % width || width;
   }
   return rows;
+};
+
+// Lays rows of cells out in columns, each as wide as its widest cell; `isLeft` columns align left.
+export const tableOf = (rows: string[][], isLeft: boolean[]) => {
+  const widths = (rows[0] ?? []).map((_, index) =>
+    Math.max(...rows.map((row) => (row[index] ?? "").length)),
+  );
+  return rows.map((row) =>
+    row
+      .map((cell, index) =>
+        isLeft[index]
+          ? cell.padEnd(widths[index] ?? 0)
+          : cell.padStart(widths[index] ?? 0),
+      )
+      .join(COLUMN_GAP)
+      .trimEnd(),
+  );
 };
 
 // The band and the pane draw Clawd under one key; blits repaint him there.
@@ -124,25 +142,99 @@ export const headerOf = (
   </Box>
 );
 
-// Clawd needs the column's width beside him, and rows for its menu and its wrapped status line.
-export const fitsMascot = ({ state, at, width, rows }: PaneData) =>
-  width >= MASCOT_COLUMNS + SIDE_GAP + SIDE_COLUMNS &&
-  rows >=
-    Math.max(
-      MASCOT_ROWS,
-      MENU_ROWS +
-        rowsOf(statusTextOf(state, at), width - MASCOT_COLUMNS - SIDE_GAP),
-    );
+const DEBUG_HEADER = ["ago", "result", "read", "write", "out", "cost", "saves"];
+const DEBUG_LEFT = DEBUG_HEADER.map((name) => name === "result");
 
-// `mascot`, when the pane has room for Clawd, stands left of the menu.
+const debugCellsOf = (one: Refresh, at: number) => [
+  formatDuration(at - one.at),
+  one.detail ? `${one.result} (${one.detail})` : one.result,
+  one.usage ? formatTokens(one.usage.cacheRead) : "-",
+  one.usage ? formatTokens(one.usage.cacheWrite) : "-",
+  one.usage ? String(one.usage.output) : "-",
+  one.costUsd === null ? "?" : formatUsd(one.costUsd),
+  one.savesUsd === null ? "" : formatUsd(one.savesUsd),
+];
+
+const logTextOf = (path: string) => `Log: ${path}`;
+
+// Rows the main page's column takes at `width`, all but the debug table's refreshes, which take the rows left.
+const columnRowsOf = (
+  { state, at, isDebug, logPath }: PaneData,
+  width: number,
+) => {
+  const status = statusTextOf(state, at);
+  return (
+    MENU_ROWS +
+    (status ? rowsOf(status, width) : 0) +
+    (isDebug ? rowsOf(logTextOf(logPath), width) + 1 : 0)
+  );
+};
+
+// The log path, the column names and the newest refreshes that fit in `room` rows.
+const debugTableOf = (
+  { Text }: ElementTable,
+  { list, logPath, at }: PaneData,
+  room: number,
+) => {
+  const shown = room > 0 ? list.slice(-room) : [];
+  const [columns = "", ...lines] = tableOf(
+    [DEBUG_HEADER, ...shown.map((one) => debugCellsOf(one, at))],
+    DEBUG_LEFT,
+  );
+  return [
+    <Text key="log" dimColor wrap="wrap">
+      {logTextOf(logPath)}
+    </Text>,
+    <Text key="columns" dimColor wrap="truncate-end">
+      {list.length === 0 ? "No refreshes yet." : columns}
+    </Text>,
+    ...lines.map((line, index) => (
+      <Text
+        key={`refresh:${shown[index]?.at ?? index}`}
+        wrap="truncate-end"
+        dimColor={shown[index]?.result !== "warmed"}
+      >
+        {line}
+      </Text>
+    )),
+  ];
+};
+
+export type Layout = "beside" | "above";
+
+// Where Clawd fits on the main page: beside the column, above it with a blank row between, or nowhere.
+export const layoutOf = (data: PaneData): Layout | undefined => {
+  const side = data.width - MASCOT_COLUMNS - SIDE_GAP;
+  if (
+    side >= SIDE_COLUMNS &&
+    data.rows >= Math.max(MASCOT_ROWS, columnRowsOf(data, side))
+  )
+    return "beside";
+  if (
+    data.width >= MASCOT_COLUMNS &&
+    data.rows >= MASCOT_ROWS + 1 + columnRowsOf(data, data.width)
+  )
+    return "above";
+  return undefined;
+};
+
+// `mascot`, drawn only where layoutOf finds room, stands beside the menu or above it.
 export const mainPageOf = (
   elements: ElementTable,
   data: PaneData,
   actions: PaneActions,
   mascot?: RenderElement,
 ) => {
-  const { Box, Text, Button } = elements;
-  const item = (key: Page, label: string, onPress: () => void) => (
+  const { Box, Text, Button, Link } = elements;
+  const layout = mascot && layoutOf(data);
+  const width =
+    layout === "beside" ? data.width - MASCOT_COLUMNS - SIDE_GAP : data.width;
+  const status = statusTextOf(data.state, data.at);
+  const room =
+    data.rows -
+    (layout === "above" ? MASCOT_ROWS + 1 : 0) -
+    columnRowsOf(data, width);
+  const item = (key: string, label: string, onPress: () => void) => (
     <Button
       key={`menu:${key}`}
       label={`› ${label}`}
@@ -152,32 +244,49 @@ export const mainPageOf = (
     />
   );
   const column = (
-    <Box key="menu" flexDirection="column">
-      <Text bold>Cache Warmer by paulbkimdev</Text>
-      <Text dimColor>github.com/paulbkim-dev/claude-code-cache-warmer</Text>
+    <Box key="menu" flexDirection="column" width={width}>
+      <Box
+        key="header"
+        flexDirection="column"
+        alignItems="center"
+        marginBottom={1}
+      >
+        <Text>
+          <Text bold>Cache Warmer</Text>
+          {" · "}
+          <Link href={REPOSITORY} label="GitHub ↗" />
+        </Text>
+        <Text dimColor>paulbkim.dev</Text>
+      </Box>
       {item("global", "Global configuration", () => actions.open("global"))}
       {item("session", "Session configuration", () => actions.open("session"))}
       {item("analytics", "Analytics", () => actions.open("analytics"))}
       {item(
         "debug",
         `Debug mode · ${data.isDebug ? "on" : "off"}`,
-        actions.openDebug,
+        actions.toggleDebug,
       )}
-      <Text dimColor wrap="wrap">
-        {statusTextOf(data.state, data.at)}
-      </Text>
+      {status && (
+        <Text key="status" dimColor wrap="wrap">
+          {status}
+        </Text>
+      )}
+      {data.isDebug && debugTableOf(elements, data, room)}
     </Box>
   );
-  if (!mascot) return column;
-  return (
-    <Box flexDirection="row" columnGap={SIDE_GAP}>
-      {mascot}
-      <Box
-        flexDirection="column"
-        width={data.width - MASCOT_COLUMNS - SIDE_GAP}
-      >
+  if (layout === "beside")
+    return (
+      <Box flexDirection="row" columnGap={SIDE_GAP}>
+        {mascot}
         {column}
       </Box>
-    </Box>
-  );
+    );
+  if (layout === "above")
+    return (
+      <Box flexDirection="column" alignItems="center" rowGap={1}>
+        {mascot}
+        {column}
+      </Box>
+    );
+  return column;
 };

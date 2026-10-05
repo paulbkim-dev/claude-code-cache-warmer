@@ -77,10 +77,10 @@ Claude Code를 다시 시작한 뒤 `/cache-warmer`를 입력하면 패널이 �
 Global configuration    새 세션에 쓸 기본값
 Session configuration   지금 세션에만 쓸 설정
 Analytics               비용과 절약액
-Debug mode              최근 갱신 목록
+Debug mode              켜기와 끄기
 ```
 
-- Tab과 화살표 키로 항목 사이를 옮기고, Enter로 항목을 열어요. 각 페이지 맨 위에는 Back 버튼이 있어요.
+- Tab과 화살표 키로 항목 사이를 옮겨요. Enter로 페이지를 열거나 Debug mode를 켜고 꺼요. 각 페이지 맨 위에는 Back 버튼이 있어요.
 - 패널에 포커스가 있거나, 진행 중인 턴이 없고 프롬프트 입력란이 비어 있으면 Escape로 패널을 닫아요.
 - 메뉴 아래 한 줄에 다음 갱신 시각이나 캐시 유지가 멈춘 이유가 나와요.
 
@@ -137,8 +137,8 @@ flowchart TD
 
 ## Debug mode
 
-Debug mode 페이지에는 최근 갱신이 경과 시간, 결과, 토큰, 비용, 예상 절약액과 함께 나와요.
-디버그 모드가 켜져 있으면 갱신과 멈춤마다 JSON 한 줄을 `<config>/cache-warmer/debug/<session id>.jsonl`에 덧붙여요. `<config>`는 `CLAUDE_CONFIG_DIR` 또는 `~/.claude`예요.
+디버그 모드가 켜져 있으면 메뉴 아래에 최근 갱신이 경과 시간, 결과, 토큰, 비용, 예상 절약액과 함께 나와요.
+갱신과 멈춤마다 JSON 한 줄도 `<config>/cache-warmer/debug/<session id>.jsonl`에 덧붙여요. `<config>`는 `CLAUDE_CONFIG_DIR` 또는 `~/.claude`예요.
 
 > ⚠️ 이 모드는 `/rewind`를 알아채지 못해요.
 > 되감은 뒤에도 다음 요청이 오기 전까지는 되감기 전 대화의 프리픽스를 계속 따뜻하게 유지해요.

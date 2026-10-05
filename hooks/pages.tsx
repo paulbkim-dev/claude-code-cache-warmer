@@ -1,37 +1,18 @@
 import type { ElementTable, RenderElement } from "claude-code";
 
-import type { Refresh, Totals, Ttl } from "../types";
+import type { Totals, Ttl } from "../types";
 import type { PaneActions, PaneData } from "./pane";
-import { headerOf, mainPageOf, rowsOf, statusTextOf } from "./pane";
+import { headerOf, mainPageOf, statusTextOf, tableOf } from "./pane";
 import {
   MIN_SAVINGS_USD,
   PRICES_AS_OF,
   delayOf,
   formatDuration,
-  formatTokens,
   formatUsd,
   idleSpanOf,
 } from "./warmer";
 
 const TTLS = ["5m", "1h"] as const;
-const COLUMN_GAP = "  ";
-
-// Lays rows of cells out in columns, each as wide as its widest cell; `isLeft` columns align left.
-const tableOf = (rows: string[][], isLeft: boolean[]) => {
-  const widths = (rows[0] ?? []).map((_, index) =>
-    Math.max(...rows.map((row) => (row[index] ?? "").length)),
-  );
-  return rows.map((row) =>
-    row
-      .map((cell, index) =>
-        isLeft[index]
-          ? cell.padEnd(widths[index] ?? 0)
-          : cell.padStart(widths[index] ?? 0),
-      )
-      .join(COLUMN_GAP)
-      .trimEnd(),
-  );
-};
 
 const ttlButtonsOf = (
   { Button }: ElementTable,
@@ -108,6 +89,7 @@ const sessionPageOf = (
   const { Box, Text } = elements;
   const { chosen, isForced, isLocked, limits, state, at } = data;
   const effective = isForced ? "5m" : chosen;
+  const status = statusTextOf(state, at);
   return (
     <Box flexDirection="column">
       {headerOf(elements, "Session configuration", actions.open)}
@@ -125,9 +107,11 @@ const sessionPageOf = (
       <Text key="interval" dimColor>
         {`Refreshes every ${formatDuration(delayOf(effective))} · idle limit ${limits[effective]} refreshes`}
       </Text>
-      <Text key="status" dimColor>
-        {statusTextOf(state, at)}
-      </Text>
+      {status && (
+        <Text key="status" dimColor>
+          {status}
+        </Text>
+      )}
       {isForced && (
         <Text key="forced" color="yellow">
           {`FORCE_PROMPT_CACHING_5M overrides ${chosen}; the cache lives 5m.`}
@@ -193,62 +177,6 @@ const analyticsPageOf = (
   );
 };
 
-const DEBUG_HEADER = ["ago", "result", "read", "write", "out", "cost", "saves"];
-const DEBUG_LEFT = DEBUG_HEADER.map((name) => name === "result");
-
-const debugCellsOf = (one: Refresh, at: number) => [
-  formatDuration(at - one.at),
-  one.detail ? `${one.result} (${one.detail})` : one.result,
-  one.usage ? formatTokens(one.usage.cacheRead) : "-",
-  one.usage ? formatTokens(one.usage.cacheWrite) : "-",
-  one.usage ? String(one.usage.output) : "-",
-  one.costUsd === null ? "?" : formatUsd(one.costUsd),
-  one.savesUsd === null ? "" : formatUsd(one.savesUsd),
-];
-
-const debugPageOf = (
-  elements: ElementTable,
-  { list, logPath, at, width, rows }: PaneData,
-  actions: PaneActions,
-) => {
-  const { Box, Text, Button } = elements;
-  const logText = `Log: ${logPath}`;
-  // The header row, the Turn off row, the wrapped log path and the table's header.
-  const room = Math.max(0, rows - 3 - rowsOf(logText, Math.max(10, width)));
-  const shown = room > 0 ? list.slice(-room) : [];
-  const [header = "", ...lines] = tableOf(
-    [DEBUG_HEADER, ...shown.map((one) => debugCellsOf(one, at))],
-    DEBUG_LEFT,
-  );
-  return (
-    <Box flexDirection="column">
-      {headerOf(elements, "Debug mode", actions.open)}
-      <Box key="off" flexDirection="row">
-        <Button
-          key="debug:off"
-          label="Turn off"
-          onPress={actions.turnOffDebug}
-        />
-      </Box>
-      <Text key="log" dimColor wrap="wrap">
-        {logText}
-      </Text>
-      <Text key="columns" dimColor wrap="truncate-end">
-        {list.length === 0 ? "No refreshes yet." : header}
-      </Text>
-      {lines.map((line, index) => (
-        <Text
-          key={`refresh:${shown[index]?.at ?? index}`}
-          wrap="truncate-end"
-          dimColor={shown[index]?.result !== "warmed"}
-        >
-          {line}
-        </Text>
-      ))}
-    </Box>
-  );
-};
-
 export const paneOf = (
   elements: ElementTable,
   data: PaneData,
@@ -259,6 +187,5 @@ export const paneOf = (
   if (data.page === "session") return sessionPageOf(elements, data, actions);
   if (data.page === "analytics")
     return analyticsPageOf(elements, data, actions);
-  if (data.page === "debug") return debugPageOf(elements, data, actions);
   return mainPageOf(elements, data, actions, mascot);
 };

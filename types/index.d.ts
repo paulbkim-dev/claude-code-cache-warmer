@@ -56,7 +56,7 @@ export type AllTime = Totals & { since: number };
 // The refreshes each lifetime may send while the session is idle.
 export type IdleLimits = { "5m": number; "1h": number };
 
-export type Page = "main" | "global" | "session" | "analytics" | "debug";
+export type Page = "main" | "global" | "session" | "analytics";
 
 // The main conversation's last request: the prefix a fork replays and keeps warm.
 export type Anchor = {
@@ -92,7 +92,7 @@ declare module "claude-code" {
       isForced: boolean;
       // Set by the first main-thread response: the lifetime cannot change until /clear or a new session.
       isLocked: boolean;
-      // While on, the Debug page lists each refresh and a JSONL log records refreshes and stops.
+      // While on, the main page lists the newest refreshes and a JSONL log records refreshes and stops.
       isDebug: boolean;
       page: Page;
       refreshes: Refresh[];

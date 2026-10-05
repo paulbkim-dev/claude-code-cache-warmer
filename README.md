@@ -77,10 +77,10 @@ During a refresh, a band above the prompt shows Clawd, the Claude Code mascot.
 Global configuration    defaults for new sessions
 Session configuration   the current session only
 Analytics               costs and savings
-Debug mode              recent refreshes
+Debug mode              on or off
 ```
 
-- Tab and the arrow keys move between items, and Enter opens one. Each page starts with a Back button.
+- Tab and the arrow keys move between items. Enter opens a page or turns Debug mode on or off. Each page starts with a Back button.
 - Escape closes the pane when the pane has focus, or when the prompt is idle and empty.
 - A line below the menu shows the next refresh, or why warming stopped.
 
@@ -137,8 +137,8 @@ The next request starts it again.
 
 ## Debug mode
 
-The Debug mode page lists the newest refreshes with their age, result, tokens, cost, and estimated saving.
-While debug mode is on, the mod appends one JSON line per refresh and per stop to `<config>/cache-warmer/debug/<session id>.jsonl`, where `<config>` is `CLAUDE_CONFIG_DIR` or `~/.claude`.
+While debug mode is on, the newest refreshes show under the menu with their age, result, tokens, cost, and estimated saving.
+The mod also appends one JSON line per refresh and per stop to `<config>/cache-warmer/debug/<session id>.jsonl`, where `<config>` is `CLAUDE_CONFIG_DIR` or `~/.claude`.
 
 > ⚠️ The mod cannot see `/rewind`.
 > After a rewind, refreshes keep the later prefix warm until the next request.

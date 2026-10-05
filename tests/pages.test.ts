@@ -24,12 +24,16 @@ test("each menu item opens its page, Back returns to the menu, and reopening sta
   await start($);
   await toggle($);
   const pane = await mountPane($, "terminal");
-  expect(await pane.find({ text: "› Debug mode · off" })).toBeDefined();
+  expect(await pane.find({ type: "Link" })).toMatchObject({
+    props: {
+      href: "https://github.com/paulbkim-dev/claude-code-cache-warmer",
+      label: "GitHub ↗",
+    },
+  });
   for (const [key, title] of [
     ["global", "Global configuration"],
     ["session", "Session configuration"],
     ["analytics", "Analytics"],
-    ["debug", "Debug mode"],
   ] as const) {
     await pane.press({ key: `menu:${key}` });
     expect(await pane.find({ text: title })).toBeDefined();
@@ -37,11 +41,8 @@ test("each menu item opens its page, Back returns to the menu, and reopening sta
       props: { plain: true, autoFocus: true },
     });
     await pane.press({ key: "back" });
-    expect(
-      await pane.find({ text: "Cache Warmer by paulbkimdev" }),
-    ).toBeDefined();
+    expect(await pane.find({ text: "Cache Warmer · GitHub ↗" })).toBeDefined();
   }
-  expect(await pane.find({ text: "› Debug mode · on" })).toBeDefined();
   await pane.press({ key: "menu:global" });
   await toggle($);
   await toggle($);
@@ -158,7 +159,7 @@ test(
   },
 );
 
-test("debug mode appends a JSON line per refresh and per stop to the session's log", async ($, on) => {
+test("the Debug mode item toggles in place; while on, a JSON line per refresh and per stop goes to the session's log", async ($, on) => {
   const { clock, files, prompt, writes } = world(on, { HOME: "/home/t" });
   on("session.end", (_, e) => ({ sessionId: e.sessionId }));
   await start($);
@@ -168,6 +169,8 @@ test("debug mode appends a JSON line per refresh and per stop to the session's l
   const path = `/home/t/.claude/cache-warmer/debug/${SESSION_ID}.jsonl`;
   const pane = await mountPane($, "terminal");
   await pane.press({ key: "menu:debug" });
+  expect(await pane.find({ text: "› Debug mode · on" })).toBeDefined();
+  expect(await pane.find({ key: "back" })).toBeUndefined();
   expect(await pane.find({ text: `Log: ${path}` })).toBeDefined();
   await clock.advance(270_000);
   await $.session.end(clear);
@@ -188,12 +191,13 @@ test("debug mode appends a JSON line per refresh and per stop to the session's l
     at: new Date(START + 540_000).toISOString(),
     reason: "conversation cleared",
   });
-  await pane.press({ key: "debug:off" });
+  await pane.press({ key: "menu:debug" });
   expect(await pane.find({ text: "› Debug mode · off" })).toBeDefined();
+  expect(await pane.find({ text: /^Log: / })).toBeUndefined();
   await pane.unmount();
 });
 
-test("the debug table keeps the newest rows that fit the pane, aligned in columns", async ($, on) => {
+test("the debug table under the menu keeps the newest rows that fit the pane, aligned in columns", async ($, on) => {
   const { clock, forks, prompt } = world(on, { CLAUDE_CONFIG_DIR: "/c" });
   await start($);
   await prompt($, "t1");
@@ -203,8 +207,8 @@ test("the debug table keeps the newest rows that fit the pane, aligned in column
     (await pane.findAll({ type: "Text", text: /  warmed  / })).map(
       (one) => one.text,
     );
-  // Back, Turn off, the log path and the column names leave four of eight rows.
-  const narrow = await mountPane($, "terminal", { columns: 40, bodyRows: 8 });
+  // The menu's seven rows, the stop reason's two, the log path and the column names leave four of 15; Clawd would need eight.
+  const narrow = await mountPane($, "terminal", { columns: 40, bodyRows: 15 });
   await narrow.press({ key: "menu:debug" });
   expect(
     await narrow.find({
@@ -218,8 +222,10 @@ test("the debug table keeps the newest rows that fit the pane, aligned in column
     " 7m30s  warmed  200.0k     30  182  $0.04  $0.92",
   ]);
   await narrow.unmount();
-  const none = await mountPane($, "terminal", { columns: 40, bodyRows: 4 });
-  expect(await none.find({ key: "debug:off" })).toBeDefined();
+  const none = await mountPane($, "terminal", { columns: 40, bodyRows: 11 });
+  expect(
+    await none.find({ text: "Log: /c/cache-warmer/debug/s-test.jsonl" }),
+  ).toBeDefined();
   expect(await rowsIn(none)).toHaveLength(0);
   await none.unmount();
 });
