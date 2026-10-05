@@ -40,7 +40,7 @@ test("the refresh decision follows Pi: idle prompts need 15% odds to clear $0.05
   ).toBeNull();
 });
 
-test("a response schedules a fork at 90% of the lifetime; Clawd's band shows its cost and saving, then goes", async ($, on) => {
+test("a response schedules a fork at 90% of the lifetime; the band shows its lifetime, cost and saving, then goes", async ($, on) => {
   const { clock, envSets, forks, logged, prompt } = world(on);
   await start($);
   expect(envSets).toEqual([["CLAUDE_CODE_PROMPT_CACHE_TTL", "5m"]]);
@@ -49,21 +49,19 @@ test("a response schedules a fork at 90% of the lifetime; Clawd's band shows its
   expect(forks).toHaveLength(0);
   await clock.advance(1);
   expect(forks).toHaveLength(1);
+  expect(forks[0]).toMatch(/^\[cache-warmer\] /);
   const band = await mountBand($);
-  expect(
-    await band.find({
-      text: "Cache warmed · read 200.0k · $0.04 · saves $0.92 vs rewrite",
-    }),
-  ).toBeDefined();
+  expect((await band.find({ text: /^☕ cache warmer / }))?.text).toBe(
+    "☕ cache warmer 5m every 4m30s · Cache warmed · read 200.0k · $0.04 · saves $0.92 vs rewrite",
+  );
+  expect(await band.find({ type: "Raster" })).toBeUndefined();
   expect(logged).toEqual([
     "Cache warmer could not record the refresh: no implementation for session.append",
   ]);
-  const mascot = await band.find({ type: "Raster", key: "mascot" });
-  expect(mascot?.props).toMatchObject({ columns: 28, rows: 7 });
   await band.unmount();
   await clock.advance(5000);
   const after = await mountBand($);
-  expect(await after.find({ text: /Cache warmed/ })).toBeUndefined();
+  expect(await after.find({ text: /^☕ cache warmer / })).toBeUndefined();
   expect(await after.find({ text: "engine band" })).toBeDefined();
   await after.unmount();
   await clock.advance(265_000);

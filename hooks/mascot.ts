@@ -1,4 +1,4 @@
-// Clawd, the Claude Code mascot, holding a steaming mug: the band's animation.
+// Clawd, the Claude Code mascot, holding a steaming mug: the pane's animation.
 // Half blocks draw the sprite and braille dots draw the steam, packed as
 // RasterProps cells. A frame depends on time and mood alone, so dropped frames
 // never put it out of step.
@@ -408,7 +408,7 @@ const base64Of = (bytes: Uint8Array): string => {
   return out.join("");
 };
 
-// `t` counts seconds since the band appeared and `m` seconds since the mood
+// `t` counts seconds since the scene started and `m` seconds since the mood
 // began; `background` fills the cells around Clawd.
 export const cellsOf = (
   t: number,

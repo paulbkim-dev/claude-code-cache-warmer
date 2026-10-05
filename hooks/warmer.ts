@@ -1,6 +1,6 @@
 import type { ConfigValue, ModelForkResult, ModelUsage } from "claude-code";
 
-import type { Refresh, Totals, Ttl, Usage } from "../types";
+import type { Notice, Refresh, Totals, Ttl, Usage } from "../types";
 
 export const PRICES_AS_OF = "2026-10-04";
 
@@ -221,12 +221,19 @@ export const outcomeOf = (
   };
 };
 
-export const noticeOf = (entry: Refresh): string => {
+export const noticeOf = (entry: Refresh): Pick<Notice, "head" | "detail"> => {
   const cost = `${entry.usage ? `read ${formatTokens(entry.usage.cacheRead)} · ` : ""}${entry.costUsd === null ? "cost unknown" : formatUsd(entry.costUsd)}`;
   if (entry.result === "expired")
-    return `Cache had expired; the refresh rewrote it · ${cost}`;
-  if (entry.result === "failed") return `Cache refresh failed · ${cost}`;
-  return `Cache warmed · ${cost} · saves ${entry.savesUsd === null ? "unknown" : formatUsd(entry.savesUsd)} vs rewrite`;
+    return {
+      head: "Cache had expired",
+      detail: `the refresh rewrote it · ${cost}`,
+    };
+  if (entry.result === "failed")
+    return { head: "Cache refresh failed", detail: cost };
+  return {
+    head: "Cache warmed",
+    detail: `${cost} · saves ${entry.savesUsd === null ? "unknown" : formatUsd(entry.savesUsd)} vs rewrite`,
+  };
 };
 
 export const formatUsd = (usd: number): string => {

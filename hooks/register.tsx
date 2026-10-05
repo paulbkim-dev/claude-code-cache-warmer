@@ -17,7 +17,6 @@ import type {
   AllTime,
   Anchor,
   IdleLimits,
-  Mood,
   Notice,
   Page,
   Refresh,
@@ -26,10 +25,10 @@ import type {
   Ttl,
   Warming,
 } from "../types";
-import { MASCOT_ROWS, TERMINAL_DEFAULT, cellsOf } from "./mascot";
+import { TERMINAL_DEFAULT, cellsOf } from "./mascot";
 import { paneOf } from "./pages";
 import type { Mascot, PaneActions, PaneData } from "./pane";
-import { MASCOT_KEY, bandOf, layoutOf, plainBandOf, rasterOf } from "./pane";
+import { MASCOT_KEY, bandOf, layoutOf, rasterOf } from "./pane";
 import type { ForkReply } from "./warmer";
 import {
   DEFAULT_OUTPUT_TOKENS,
@@ -59,8 +58,10 @@ const IDLE_KEYS = {
   "5m": "cache-warmer.idle5m",
   "1h": "cache-warmer.idle1h",
 } as const;
+const BAND_KEY = "cache-warmer.band";
 const ALL_TIME_KEY = "allTime";
-const FORK_PROMPT = "Prompt cache refresh. Reply with the single word ok.";
+const FORK_PROMPT =
+  "[cache-warmer] Automated prompt cache refresh by the cache-warmer plugin, not a message from the user. Reply with the single word ok.";
 const NOTICE_MS = 5000;
 const FRAME_MS = 33;
 // The preview's warm and cold notices, in milliseconds after it starts.
@@ -94,6 +95,10 @@ const isDebug = atom(
   { plugin: "cache-warmer", key: "isDebug" } as const,
   false,
 );
+const isBandShown = atom(
+  { plugin: "cache-warmer", key: "isBandShown" } as const,
+  true,
+);
 const page = atom({ plugin: "cache-warmer", key: "page" } as const, "main");
 const refreshes = atom(
   { plugin: "cache-warmer", key: "refreshes" } as const,
@@ -125,8 +130,8 @@ let previewSteps: Timer[] = [];
 let isStill = false;
 // Claude Code's theme, "auto" resolved to "light" or "dark".
 let theme = "dark";
-// The band's and the pane's requestIds while they draw Clawd, each with the
-// color behind him there; blits repaint him in each.
+// The pane's requestId while it draws Clawd, with the color behind him there;
+// blits repaint him.
 const sites = new Map<string, number>();
 let paneSince = 0;
 let isPainting = false;
@@ -329,14 +334,11 @@ const mascotOf = (scene: Scene, at: number, background: number) => {
       );
 };
 
-// The pane plays the band's notice while one is up, and otherwise the
+// The pane plays the notice while one is up, and otherwise the
 // warmer's state: Clawd sips while it warms and dozes once it stopped.
-const sceneOf = async (
-  $: EngineInterface,
-  requestId: string,
-): Promise<Scene | null> => {
+const sceneOf = async ($: EngineInterface): Promise<Scene> => {
   const shown = await read($, notice);
-  if (shown || requestId !== PANE) return shown;
+  if (shown) return shown;
   const isStopped = (await read($, status)).state === "stopped";
   return {
     mood: isStopped ? "cold" : "warming",
@@ -345,36 +347,32 @@ const sceneOf = async (
   };
 };
 
-// A refused blit means a site no longer shows Clawd: a survey took the band,
-// the person collapsed it, the notice went or the pane closed. Painting there
-// resumes when it draws Clawd again.
+// A refused blit means the pane no longer shows Clawd: it closed or left the
+// main page. Painting resumes when it draws Clawd again.
 const paint = async ($: EngineInterface) => {
   if (isPainting || sites.size === 0) return;
   isPainting = true;
   try {
     const at = await $.clock.now();
     for (const [requestId, background] of sites) {
-      const scene = await sceneOf($, requestId);
-      const answer =
-        scene &&
-        (await $.ui.blit({
-          requestId,
-          key: MASCOT_KEY,
-          cells: mascotOf(scene, at, background),
-        }));
-      if (!answer || answer.deny !== undefined) sites.delete(requestId);
+      const answer = await $.ui.blit({
+        requestId,
+        key: MASCOT_KEY,
+        cells: mascotOf(await sceneOf($), at, background),
+      });
+      if (answer.deny !== undefined) sites.delete(requestId);
     }
   } finally {
     isPainting = false;
   }
 };
 
-// Frames run while the band shows a notice or the pane is open. A theme
-// change shows from the next start. The latest call decides: one that a later
-// call overtook while it waited leaves the timer alone.
+// Frames run while the pane is open. A theme change shows from the next
+// start. The latest call decides: one that a later call overtook while it
+// waited leaves the timer alone.
 const syncAnimation = async ($: EngineInterface) => {
   const call = ++syncs;
-  const isShown = (await read($, notice)) !== null || (await isPaneOpen($));
+  const isShown = await isPaneOpen($);
   const resolved = isShown && !animation ? await themeOf($) : theme;
   if (call !== syncs) return;
   theme = resolved;
@@ -385,28 +383,24 @@ const syncAnimation = async ($: EngineInterface) => {
     animation = $.clock.every(FRAME_MS, () => void paint($));
 };
 
-const clearNotice = async ($: EngineInterface) => {
-  await update($, notice, () => null);
-  await syncAnimation($);
-};
-
 const showNotice = async (
   $: EngineInterface,
-  text: string,
-  mood: Mood,
+  shown: Pick<Notice, "ttl" | "head" | "detail" | "mood">,
   isDone: boolean,
 ) => {
   hideNotice?.cancel();
   hideNotice = undefined;
   const at = await $.clock.now();
   await update($, notice, (current): Notice => ({
-    text,
-    mood,
+    ...shown,
     startedAt: current?.startedAt ?? at,
-    since: current?.mood === mood ? current.since : at,
+    since: current?.mood === shown.mood ? current.since : at,
   }));
-  await syncAnimation($);
-  if (isDone) hideNotice = $.clock.after(NOTICE_MS, () => void clearNotice($));
+  if (isDone)
+    hideNotice = $.clock.after(
+      NOTICE_MS,
+      () => void update($, notice, () => null),
+    );
 };
 
 const record = async (
@@ -501,11 +495,15 @@ const settle = async (
     ...outcome,
   };
   await record($, entry, phase, current.ttl);
-  const text = noticeOf(entry);
+  const { head, detail } = noticeOf(entry);
   await showNotice(
     $,
-    text,
-    entry.result === "warmed" ? "warmed" : "cold",
+    {
+      ttl: current.ttl,
+      head,
+      detail,
+      mood: entry.result === "warmed" ? "warmed" : "cold",
+    },
     true,
   );
   // A prompt that arrived during the fork set a new anchor and its own timer.
@@ -515,7 +513,9 @@ const settle = async (
     await $.session.append({
       message: {
         type: "system",
-        content: [{ type: "text", text: `☕ ${text}` }],
+        content: [
+          { type: "text", text: `☕ ${current.ttl} · ${head} · ${detail}` },
+        ],
       },
     });
   } catch (error) {
@@ -548,13 +548,21 @@ const forkFor = async (
   stopPreview();
   await showNotice(
     $,
-    `Warming the ${formatTokens(current.promptTokens)}-token prompt cache…`,
-    "warming",
+    {
+      ttl: current.ttl,
+      head: "Refreshing cache",
+      detail: `resending the cached ${formatTokens(current.promptTokens)}-token prompt…`,
+      mood: "warming",
+    },
     false,
   );
   const reply = await $.model.fork({ prompt: FORK_PROMPT });
   if (!reply.isAnswered && reply.reason === "nothing-to-fork") {
-    await showNotice($, "Nothing to warm", "cold", true);
+    await showNotice(
+      $,
+      { ttl: current.ttl, head: "Nothing to warm", detail: "", mood: "cold" },
+      true,
+    );
     return stopChain($, current.at, "nothing to refresh");
   }
   await settle($, current, at, phase, decision.missUsd, reply);
@@ -640,6 +648,14 @@ const setLimit = async ($: EngineInterface, limitTtl: Ttl, count: number) => {
   if ((await read($, status)).state === "scheduled") await schedule($);
 };
 
+const toggleBand = async ($: EngineInterface) => {
+  const value = !(await read($, isBandShown));
+  const answer = await $.config.set({ key: BAND_KEY, value });
+  if (answer.deny !== undefined)
+    return logDenied($, "band setting", answer.deny);
+  await update($, isBandShown, () => answer.value === true);
+};
+
 const tick = async ($: EngineInterface) => {
   if (!(await isPaneOpen($))) return;
   const at = await $.clock.now();
@@ -667,6 +683,7 @@ const startSession = async (
   $: EngineInterface,
   option: Ttl,
   limits: IdleLimits,
+  isBandOn: boolean,
 ) => {
   await $.command.register({
     name: "cache-warmer",
@@ -678,6 +695,7 @@ const startSession = async (
   await update($, isForced, () => forced === "1" || forced === "true");
   await update($, defaultTtl, () => option);
   await update($, idleLimits, () => limits);
+  await update($, isBandShown, () => isBandOn);
   // A reload after the first response keeps the lifetime the cache was written
   // with, and one after a Session page choice keeps that choice.
   const isKept = (await read($, isLocked)) || (await read($, isSessionTtl));
@@ -691,8 +709,8 @@ const startSession = async (
     (row) => row.key === "reduceMotion" && row.value === true,
   );
   $.clock.every(1000, () => void tick($));
-  // A reload cancels the old timers: drop a notice left mid-animation, re-arm
-  // warming and animate a pane left open.
+  // A reload cancels the old timers: drop a notice left up, re-arm warming
+  // and animate a pane left open.
   await update($, notice, () => null);
   await schedule($);
   paneSince = await $.clock.now();
@@ -707,15 +725,18 @@ const stopPreview = () => {
 // Plays the band a refresh shows, without a fork: warming, warmed, then cold.
 const preview = async ($: EngineInterface) => {
   stopPreview();
-  await showNotice($, "Preview: warming the prompt cache…", "warming", false);
+  const shownTtl = await effectiveTtl($);
+  const step = (head: string, mood: Notice["mood"], isDone: boolean) =>
+    showNotice($, { ttl: shownTtl, head, detail: "preview", mood }, isDone);
+  await step("Refreshing cache", "warming", false);
   previewSteps = [
     $.clock.after(
       PREVIEW_WARMED_MS,
-      () => void showNotice($, "Preview: cache warmed", "warmed", false),
+      () => void step("Cache warmed", "warmed", false),
     ),
     $.clock.after(
       PREVIEW_COLD_MS,
-      () => void showNotice($, "Preview: cache had expired", "cold", true),
+      () => void step("Cache had expired", "cold", true),
     ),
   ];
 };
@@ -854,13 +875,9 @@ const renderBand = async (
   e: Frozen<MatchedEvent<"ui.render", { component: "AbovePrompt" }>>,
 ) => {
   const shown = await read($, notice);
-  sites.delete(e.requestId);
-  if (!shown || e.props.hasSurvey) return undefined;
-  if (e.surface !== "terminal" || e.props.maxRows < MASCOT_ROWS)
-    return plainBandOf($.ui.resolve(e), shown.text);
-  sites.set(e.requestId, TERMINAL_DEFAULT);
-  const cells = mascotOf(shown, await $.clock.now(), TERMINAL_DEFAULT);
-  return bandOf($.ui.resolve(e), shown.text, cells);
+  if (!shown || e.props.hasSurvey || !(await read($, isBandShown)))
+    return undefined;
+  return bandOf($.ui.resolve(e), shown);
 };
 
 const renderPane = async (
@@ -879,6 +896,7 @@ const renderPane = async (
     isForced: await read($, isForced),
     isLocked: await read($, isLocked),
     isDebug: debugOn,
+    isBandShown: await read($, isBandShown),
     state: await read($, status),
     totals: await read($, totals),
     allTime: await read($, allTime),
@@ -890,9 +908,9 @@ const renderPane = async (
   };
   let mascot: Mascot | undefined;
   sites.delete(PANE);
-  const scene = await sceneOf($, PANE);
-  const layout = shown === "main" && scene ? layoutOf(data) : undefined;
-  if (e.surface === "terminal" && layout && scene) {
+  const scene = await sceneOf($);
+  const layout = shown === "main" ? layoutOf(data) : undefined;
+  if (e.surface === "terminal" && layout) {
     const background =
       e.props.placement === "dock" ? dockBackgroundOf(theme) : TERMINAL_DEFAULT;
     sites.set(PANE, background);
@@ -902,6 +920,7 @@ const renderPane = async (
   const actions: PaneActions = {
     open: (next) => void update($, page, () => next),
     toggleDebug: () => void update($, isDebug, (current) => !current),
+    toggleBand: () => void toggleBand($),
     chooseDefault: (value) => void chooseDefault($, value),
     chooseSession: (value) => void chooseSessionTtl($, value),
     setLimit: (limitTtl, count) => void setLimit($, limitTtl, count),
@@ -916,8 +935,9 @@ export const register: Register = (on, options) => {
     "5m": limitOf(options.idle5m ?? IDLE_LIMIT_DEFAULT),
     "1h": limitOf(options.idle1h ?? IDLE_LIMIT_DEFAULT),
   };
+  const isBandOn = options.band !== false;
   on("session.start", async ($, e, next) => {
-    await startSession($, option, limits);
+    await startSession($, option, limits, isBandOn);
     return next(e);
   });
   on("command.run", { command: "cache-warmer" }, ($, e) =>
@@ -930,6 +950,12 @@ export const register: Register = (on, options) => {
   on("config.set", { key: "cache-warmer.idle1h" }, ($, e, next) =>
     setIdleFromConfig($, e, next, "1h"),
   );
+  on("config.set", { key: BAND_KEY }, async ($, e, next) => {
+    const answer = await next(e);
+    if (answer.deny === undefined)
+      await update($, isBandShown, () => answer.value === true);
+    return answer;
+  });
   on("turn.start", onTurnStart);
   on("turn.step", async function* ($, e, next) {
     return yield* stepTurn($, e, next);

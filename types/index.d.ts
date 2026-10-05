@@ -29,13 +29,16 @@ export type Status =
   | { state: "refreshing" }
   | { state: "stopped"; reason: string };
 
-// How Clawd behaves in the band: sipping while a refresh runs, hopping after
+// How Clawd behaves in the pane: sipping while a refresh runs, hopping after
 // a warm one, dozing off over a cold mug after a failure or an expired cache.
 export type Mood = "warming" | "warmed" | "cold";
 
-// `startedAt` is when the band appeared and `since` when its mood began, in epoch milliseconds.
+// The band's line: `head` is the highlighted outcome and `detail` the dim rest.
+// `startedAt` is when the notice appeared and `since` when its mood began, in epoch milliseconds.
 export type Notice = {
-  text: string;
+  ttl: Ttl;
+  head: string;
+  detail: string;
   mood: Mood;
   startedAt: number;
   since: number;
@@ -94,6 +97,8 @@ declare module "claude-code" {
       isLocked: boolean;
       // While on, the main page lists the newest refreshes and a JSONL log records refreshes and stops.
       isDebug: boolean;
+      // While on, the band above the prompt shows each refresh.
+      isBandShown: boolean;
       page: Page;
       refreshes: Refresh[];
       status: Status;

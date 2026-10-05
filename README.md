@@ -55,7 +55,11 @@ To stop all warming, run `claude plugin disable cache-warmer`.
 
 ## What you see
 
-During a refresh, a band above the prompt shows Clawd, the Claude Code mascot.
+During a refresh, a dim one-line band above the prompt says that the mod is resending the cached prompt.
+It shows the cache time in color (`5m` cyan, `1h` magenta), the refresh interval, and the outcome: yellow while the refresh runs, green when the cache is warm, and red when it expired or failed.
+The band goes 5 seconds after the refresh.
+
+The pane shows Clawd, the Claude Code mascot.
 
 | Clawd | Meaning |
 |---|---|
@@ -64,7 +68,9 @@ During a refresh, a band above the prompt shows Clawd, the Claude Code mascot.
 | Dozes with a cold mug | The cache expired, or the refresh failed. |
 
 - The refresh never enters the conversation. The transcript keeps one notice row per refresh, starting with ☕, and no request sends it to the model.
-- The band needs seven free terminal rows; elsewhere it shows only the result line. `reduceMotion` keeps Clawd still.
+- Turn the band off on the Global page or in the `/config` row `cache-warmer.band`.
+- Each refresh request starts with `[cache-warmer]`, so a request log or proxy can tell it from your prompts.
+- `reduceMotion` keeps Clawd still.
 - `/cache-warmer preview` plays the three states with no refresh.
 
 <br>

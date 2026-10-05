@@ -3,6 +3,8 @@ import type { ElementTable, RenderElement } from "claude-code";
 import type {
   AllTime,
   IdleLimits,
+  Mood,
+  Notice,
   Page,
   Refresh,
   Status,
@@ -10,7 +12,7 @@ import type {
   Ttl,
 } from "../types";
 import { MASCOT_COLUMNS, MASCOT_ROWS } from "./mascot";
-import { formatDuration, formatTokens, formatUsd } from "./warmer";
+import { delayOf, formatDuration, formatTokens, formatUsd } from "./warmer";
 
 export const MASCOT_KEY = "mascot";
 const REPOSITORY = "https://github.com/paulbkim-dev/claude-code-cache-warmer";
@@ -30,6 +32,7 @@ export type PaneData = {
   isForced: boolean;
   isLocked: boolean;
   isDebug: boolean;
+  isBandShown: boolean;
   state: Status;
   totals: Totals;
   allTime: AllTime;
@@ -43,6 +46,7 @@ export type PaneData = {
 export type PaneActions = {
   open: (page: Page) => void;
   toggleDebug: () => void;
+  toggleBand: () => void;
   chooseDefault: (value: Ttl) => void;
   chooseSession: (value: Ttl) => void;
   setLimit: (ttl: Ttl, count: number) => void;
@@ -90,7 +94,7 @@ export const tableOf = (rows: string[][], isLeft: boolean[]) => {
   );
 };
 
-// The band and the pane draw Clawd under one key; blits repaint him there.
+// The pane draws Clawd under one key; blits repaint him there.
 export const rasterOf = (
   { Raster }: ElementTable<"terminal">,
   cells: string,
@@ -103,25 +107,28 @@ export const rasterOf = (
   />
 );
 
-export const bandOf = (
-  elements: ElementTable<"terminal">,
-  text: string,
-  cells: string,
-) => {
-  const { Box, Text } = elements;
-  return (
-    <Box flexDirection="row">
-      {rasterOf(elements, cells)}
-      <Box flexDirection="column" justifyContent="center" marginLeft={1}>
-        <Text dimColor>{text}</Text>
-      </Box>
-    </Box>
-  );
-};
+const TTL_COLORS = { "5m": "cyan", "1h": "magenta" } satisfies Record<
+  Ttl,
+  string
+>;
+const MOOD_COLORS = {
+  warming: "yellow",
+  warmed: "green",
+  cold: "red",
+} satisfies Record<Mood, string>;
 
-// Surfaces without a Raster, and bands too short for Clawd, show the notice alone.
-export const plainBandOf = ({ Text }: ElementTable, text: string) => (
-  <Text dimColor>{`☕ ${text}`}</Text>
+// One dim line with the lifetime and the outcome in color.
+export const bandOf = (
+  { Text }: ElementTable,
+  { ttl, head, detail, mood }: Notice,
+) => (
+  <Text wrap="truncate-end">
+    <Text dimColor>{"☕ cache warmer "}</Text>
+    <Text color={TTL_COLORS[ttl]}>{ttl}</Text>
+    <Text dimColor>{` every ${formatDuration(delayOf(ttl))} · `}</Text>
+    <Text color={MOOD_COLORS[mood]}>{head}</Text>
+    {detail && <Text dimColor>{` · ${detail}`}</Text>}
+  </Text>
 );
 
 // Every sub-page opens with the Back button, which holds the focus first, and its title.

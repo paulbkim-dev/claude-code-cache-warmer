@@ -32,6 +32,7 @@ const ttlButtonsOf = (
 
 const GLOBAL_LABELS = {
   default: "Default lifetime",
+  band: "Refresh band",
   "5m": "Idle refreshes, 5m",
   "1h": "Idle refreshes, 1h",
 };
@@ -41,7 +42,7 @@ const GLOBAL_LABEL_WIDTH = Math.max(
 
 const globalPageOf = (
   elements: ElementTable,
-  { saved, limits }: PaneData,
+  { saved, limits, isBandShown }: PaneData,
   actions: PaneActions,
 ) => {
   const { Box, Text, Button } = elements;
@@ -54,6 +55,20 @@ const globalPageOf = (
       <Box key="default" flexDirection="row">
         {label(GLOBAL_LABELS.default)}
         {ttlButtonsOf(elements, "default", saved, actions.chooseDefault)}
+      </Box>
+      <Box key="band" flexDirection="row">
+        {label(GLOBAL_LABELS.band)}
+        {[true, false].map((value) => (
+          <Button
+            key={`band:${value ? "on" : "off"}`}
+            label={value ? "on" : "off"}
+            variant={value === isBandShown ? "primary" : undefined}
+            dimColor={value !== isBandShown}
+            onPress={() => {
+              if (value !== isBandShown) actions.toggleBand();
+            }}
+          />
+        ))}
       </Box>
       {TTLS.map((ttl) => (
         <Box key={`idle:${ttl}`} flexDirection="row">
