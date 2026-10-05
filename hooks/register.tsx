@@ -221,7 +221,10 @@ const forget = async ($: EngineInterface, reason: string) => {
   const { anchor } = await read($, warming);
   if (anchor && anchor.feeUsd > 0)
     await addToTotals($, { wastedUsd: anchor.feeUsd });
-  await update($, warming, (current): Warming => ({ ...current, anchor: null }));
+  await update($, warming, (current): Warming => ({
+    ...current,
+    anchor: null,
+  }));
   await reportStop($, reason);
 };
 
