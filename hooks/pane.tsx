@@ -58,7 +58,7 @@ export const statusTextOf = (state: Status, at: number): string | undefined => {
 };
 
 // Rows a text takes wrapped at spaces, a word longer than the width broken across rows.
-export const rowsOf = (text: string, width: number) => {
+const rowsOf = (text: string, width: number) => {
   let rows = 1;
   let used = 0;
   for (const word of text.split(" ")) {
@@ -200,7 +200,10 @@ const debugTableOf = (
   ];
 };
 
-export type Layout = "beside" | "above";
+type Layout = "beside" | "above";
+
+// Clawd's raster and where layoutOf placed him.
+export type Mascot = { raster: RenderElement; layout: Layout };
 
 // Where Clawd fits on the main page: beside the column, above it with a blank row between, or nowhere.
 export const layoutOf = (data: PaneData): Layout | undefined => {
@@ -218,22 +221,17 @@ export const layoutOf = (data: PaneData): Layout | undefined => {
   return undefined;
 };
 
-// `mascot`, drawn only where layoutOf finds room, stands beside the menu or above it.
 export const mainPageOf = (
   elements: ElementTable,
   data: PaneData,
   actions: PaneActions,
-  mascot?: RenderElement,
+  mascot?: Mascot,
 ) => {
   const { Box, Text, Button, Link } = elements;
-  const layout = mascot && layoutOf(data);
+  const layout = mascot?.layout;
   const width =
     layout === "beside" ? data.width - MASCOT_COLUMNS - SIDE_GAP : data.width;
   const status = statusTextOf(data.state, data.at);
-  const room =
-    data.rows -
-    (layout === "above" ? MASCOT_ROWS + 1 : 0) -
-    columnRowsOf(data, width);
   const item = (key: string, label: string, onPress: () => void) => (
     <Button
       key={`menu:${key}`}
@@ -271,22 +269,28 @@ export const mainPageOf = (
           {status}
         </Text>
       )}
-      {data.isDebug && debugTableOf(elements, data, room)}
+      {data.isDebug &&
+        debugTableOf(
+          elements,
+          data,
+          data.rows -
+            (layout === "above" ? MASCOT_ROWS + 1 : 0) -
+            columnRowsOf(data, width),
+        )}
     </Box>
   );
-  if (layout === "beside")
+  if (!mascot) return column;
+  if (mascot.layout === "beside")
     return (
       <Box flexDirection="row" columnGap={SIDE_GAP}>
-        {mascot}
+        {mascot.raster}
         {column}
       </Box>
     );
-  if (layout === "above")
-    return (
-      <Box flexDirection="column" alignItems="center" rowGap={1}>
-        {mascot}
-        {column}
-      </Box>
-    );
-  return column;
+  return (
+    <Box flexDirection="column" alignItems="center" rowGap={1}>
+      {mascot.raster}
+      {column}
+    </Box>
+  );
 };

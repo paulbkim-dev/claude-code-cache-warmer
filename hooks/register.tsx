@@ -7,7 +7,6 @@ import type {
   MatchedEvent,
   Next,
   Register,
-  RenderElement,
   StreamNext,
   Timer,
   TurnStepChunk,
@@ -29,7 +28,7 @@ import type {
 } from "../types";
 import { MASCOT_ROWS, TERMINAL_DEFAULT, cellsOf } from "./mascot";
 import { paneOf } from "./pages";
-import type { PaneActions, PaneData } from "./pane";
+import type { Mascot, PaneActions, PaneData } from "./pane";
 import { MASCOT_KEY, bandOf, layoutOf, plainBandOf, rasterOf } from "./pane";
 import type { ForkReply } from "./warmer";
 import {
@@ -884,19 +883,21 @@ const renderPane = async (
     totals: await read($, totals),
     allTime: await read($, allTime),
     list: await read($, refreshes),
-    logPath: debugOn ? await debugPathOf($) : "",
+    logPath: shown === "main" && debugOn ? await debugPathOf($) : "",
     at: Math.max(await read($, now), await $.clock.now()),
     width: e.props.bodyColumns,
     rows: e.props.scroll.bodyRows,
   };
-  let mascot: RenderElement | undefined;
+  let mascot: Mascot | undefined;
   sites.delete(PANE);
   const scene = await sceneOf($, PANE);
-  if (shown === "main" && e.surface === "terminal" && layoutOf(data) && scene) {
+  const layout = shown === "main" && scene ? layoutOf(data) : undefined;
+  if (e.surface === "terminal" && layout && scene) {
     const background =
       e.props.placement === "dock" ? dockBackgroundOf(theme) : TERMINAL_DEFAULT;
     sites.set(PANE, background);
-    mascot = rasterOf($.ui.resolve(e), mascotOf(scene, data.at, background));
+    const cells = mascotOf(scene, data.at, background);
+    mascot = { raster: rasterOf($.ui.resolve(e), cells), layout };
   }
   const actions: PaneActions = {
     open: (next) => void update($, page, () => next),

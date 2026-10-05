@@ -1,7 +1,7 @@
-import type { ElementTable, RenderElement } from "claude-code";
+import type { ElementTable } from "claude-code";
 
 import type { Totals, Ttl } from "../types";
-import type { PaneActions, PaneData } from "./pane";
+import type { Mascot, PaneActions, PaneData } from "./pane";
 import { headerOf, mainPageOf, statusTextOf, tableOf } from "./pane";
 import {
   MIN_SAVINGS_USD,
@@ -181,7 +181,7 @@ export const paneOf = (
   elements: ElementTable,
   data: PaneData,
   actions: PaneActions,
-  mascot?: RenderElement,
+  mascot?: Mascot,
 ) => {
   if (data.page === "global") return globalPageOf(elements, data, actions);
   if (data.page === "session") return sessionPageOf(elements, data, actions);
