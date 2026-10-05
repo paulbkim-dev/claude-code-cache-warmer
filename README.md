@@ -1,8 +1,8 @@
 <div align="center">
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="assets/clawd-dark.gif">
-  <img alt="Clawd sips from a steaming mug while the cache warms, hops under a heart of steam once it is warm, and dozes when it expired" src="assets/clawd-light.gif" width="914">
+  <source media="(prefers-color-scheme: dark)" srcset="assets/bar-dark.gif">
+  <img alt="The cache warmer menu bar above the prompt counts down to the next refresh, shows a yellow line while it resends the cached prompt, then a green line with the cost and saving once the cache is warm" src="assets/bar-light.gif" width="914">
 </picture>
 
 # cache-warmer
