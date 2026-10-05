@@ -1,151 +1,276 @@
-# cache-warmer
+<div align="center">
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/clawd-dark.gif">
   <img alt="Clawd sips from a steaming mug while the cache warms, hops under a heart of steam once it is warm, and dozes when it expired" src="assets/clawd-light.gif" width="914">
 </picture>
 
-Keeps the main conversation's prompt cache warm the way [Pi](https://github.com/earendil-works/pi) 1.0.2 does.
-Shortly before the cache entry expires, the mod forks the main conversation's
-last request with one short prompt, so the API reads the prefix and resets its
-lifetime.
-The fork never enters the conversation.
-The transcript keeps one notice row per refresh, prefixed with ☕, which no request carries.
-While a refresh runs, a band above the prompt shows Clawd, the Claude Code
-mascot, sipping from a steaming mug, and then the result: a hop and a heart of
-steam for a warm cache, or a cold mug and a dozing Clawd for an expired cache or
-a failed refresh.
-The band needs seven free rows and a terminal; elsewhere it shows the result
-line alone, and `reduceMotion` holds Clawd still.
-`/cache-warmer preview` plays the band's three states without a refresh.
+# ☕ cache-warmer
 
-## Install
+**Keeps the Claude Code prompt cache warm during a break, so your next prompt costs less.**
 
-Cache Warmer is a Claude Code mod; it was tested on Claude Code 2.1.289.
+🇬🇧 English · 🇰🇷 [한국어](README.ko.md)
 
-```sh
-claude plugin marketplace add paulbkim-dev/claude-code-cache-warmer
-claude plugin install cache-warmer@claude-code-cache-warmer
+</div>
+
+<br>
+
+## 🤔 What does it do?
+
+Each time you send a prompt, Claude Code sends the full conversation to the API.
+The API keeps the start of the conversation in a **prompt cache** for a short time: 5 minutes or 1 hour.
+A prompt that reads the cache costs much less and starts faster.
+After the cache expires, the next prompt must write the full cache again, and this costs more.
+
+cache-warmer sends one small **refresh** request shortly before the cache expires.
+The refresh reads the cache, and the API starts the cache time again.
+It works like the cache warmer in [Pi](https://github.com/earendil-works/pi).
+
+```mermaid
+flowchart LR
+    subgraph with["☕ With cache-warmer"]
+        direction LR
+        b1["💬 Prompt"] --> b2["⏸️ Break"] --> b3["☕ Refresh<br/>keeps the cache"] --> b4["💰 Next prompt<br/>reads the cache"]
+    end
+    subgraph without["😴 Without cache-warmer"]
+        direction LR
+        a1["💬 Prompt"] --> a2["⏸️ Break"] --> a3["⌛ Cache expires"] --> a4["💸 Next prompt<br/>writes the cache again"]
+    end
 ```
 
-Restart Claude Code, then run `/cache-warmer` to open the pane.
-`claude plugin disable cache-warmer` stops all warming.
+<br>
 
-## The pane
+## 🚀 Install
 
-`/cache-warmer` toggles a pane that opens on a menu: Global configuration, Session configuration, Analytics and Debug mode.
-Tab and the arrow keys move between items, Enter opens one, and the first item holds the focus when the pane takes the keyboard.
-Each page starts with a Back button, which returns to the menu; reopening the pane starts on the menu.
-Escape closes the pane when it has keyboard focus or the prompt is idle and empty.
-Under the menu, one line says when the next refresh is due or why warming stopped.
+1. Add the marketplace and install the mod:
 
-A terminal pane with room for him shows Clawd left of the menu.
-He plays the band's notice while one is up, sips while warming is on, and dozes once it stopped.
-Clawd's mug and steam follow Claude Code's theme: a light theme draws them for a light background.
-Under the `auto` theme, a light background in `COLORFGBG` does the same.
-Claude Code also asks the terminal for its background under `auto`, but plugins cannot read that
-answer, so a terminal that sets no `COLORFGBG` gets the dark palette.
+   ```sh
+   claude plugin marketplace add paulbkim-dev/claude-code-cache-warmer
+   claude plugin install cache-warmer@claude-code-cache-warmer
+   ```
 
-## Global and session settings
+2. Restart Claude Code.
+3. Type `/cache-warmer` to open the pane.
 
-The Global configuration page saves settings for new sessions in the plugin's `/config` rows.
-Its Default lifetime buttons, the `/config` row `cache-warmer.ttl` and `/cache-warmer 5m` or `/cache-warmer 1h` save the default lifetime.
-The page and `/config` save it even after the session's lifetime is locked; the current session follows only while it is unlocked.
-The command also sets the current session, and refuses while the lifetime is locked.
+> 🛑 To stop all warming, disable the plugin: `claude plugin disable cache-warmer`
 
-The Session configuration page changes the current session alone and leaves the saved default as it was.
-It shows the lifetime, the refresh interval, the idle limit, the next refresh or stop reason, and the `FORCE_PROMPT_CACHING_5M` warning.
+<br>
 
-## Lifetime
+## 👀 What you see
 
-The mod sets `CLAUDE_CODE_PROMPT_CACHE_TTL` for this Claude Code process, so it
-overrides the `promptCacheTtl` setting and any value inherited from the shell.
-The change applies from the next request, and that request writes the cache again once.
-The first main-conversation response of a session locks the session's lifetime:
-the Session page shows it without buttons.
-`/clear` unlocks it, and a new session starts unlocked.
-`FORCE_PROMPT_CACHING_5M=1` keeps the cache at 5 minutes whatever the choice; the Session page says so.
-A 1-hour write costs 2x the input price instead of 1.25x.
-A refresh extends both lifetimes.
-In a live test on 2026-10-05, a fork in the default 5-minute subagent bucket
-kept a 1-hour entry past 60 minutes, while a session without the mod rewrote it.
-A refresh that reads less than half the prefix reports the cache as expired and stops warming.
+During a refresh, a band above the prompt shows Clawd, the Claude Code mascot.
 
-## When it refreshes
+| Clawd | Meaning |
+|---|---|
+| ☕ Sips from a steaming mug | A refresh runs. |
+| 💛 Hops under a heart of steam | The cache is warm. |
+| 😴 Dozes with a cold mug | The cache expired, or the refresh failed. |
 
-A refresh is due at 90% of the lifetime: every 4m30s for 5 minutes and every 54m for 1 hour.
-At that point the mod applies Pi's rule: the chance of another request before
-expiry, times the extra cost of rewriting the prefix, minus the refresh's cost,
-must be at least $0.05.
-The chance is 100% while a turn is running and 15% while the session is idle.
-The rule gives each model a break-even prompt size, and the mod checks it when a response arrives, before it queues a refresh.
-Idle 5-minute caches break even at about 104k tokens on Opus 5.5 and 359k on Sonnet 5.5; 1-hour caches at about 56k and 141k.
-While a turn runs the sizes are far lower: about 12k and 25k for 5 minutes.
-A prompt below its size gets no refresh, and the stop reason names both sizes.
+- The refresh never enters the conversation.
+- The transcript keeps one notice row for each refresh, with ☕ at the start. No request sends this row to the model.
+- The band needs a terminal with seven free rows. In other places, it shows only the result line.
+- `reduceMotion` keeps Clawd still.
+- `/cache-warmer preview` plays the three states with no refresh.
 
-While the session is idle, each lifetime gets at most its idle limit of refreshes after the last prompt request.
-The Global page sets each limit from 0 to 20, 5 by default, as `/config` rows `cache-warmer.idle5m` and `cache-warmer.idle1h`.
-Beside each limit the page shows how long an idle cache stays warm: the limit times the refresh interval, plus one lifetime.
-The default keeps a 5-minute cache for 27m30s and a 1-hour cache for 5h30m.
-Every idle refresh still has to pass Pi's rule.
-While a turn runs, warming stops 60 minutes after the last prompt request, or after two lifetimes when that is longer.
-Warming also stops on compaction, `/clear`, a model switch, a failed or expired
-refresh and a timer that fired too late; the next request starts it again.
+<br>
 
-A fork has no output cap, so the estimate includes the previous refresh's
-output tokens; Opus 5.5 at high effort used 182 in a test.
+## 🧭 The pane
 
-## Analytics
+`/cache-warmer` opens and closes a pane. The pane opens on this menu:
 
-The Analytics page counts this session and all time side by side.
-All-time totals persist in the plugin's store and start on the date the page shows.
-Costs are estimates at the API list prices in `hooks/warmer.ts`, not subscription charges.
+```text
+/cache-warmer
+├── 🌐 Global configuration    settings for new sessions
+├── 🗂️ Session configuration   settings for this session only
+├── 📊 Analytics               costs and savings
+└── 🐞 Debug mode              a list of recent refreshes
+```
+
+- ⌨️ Tab and the arrow keys move between items. Enter opens an item.
+- 🎯 When the pane takes the keyboard, the first item has the focus.
+- ↩️ Each page starts with a Back button, which goes back to the menu. The pane always opens again on the menu.
+- ⎋ Escape closes the pane when the pane has keyboard focus, or when the prompt is idle and empty.
+- ⏰ Below the menu, one line shows the time of the next refresh, or the reason why warming stopped.
+
+### 🎨 Clawd and the theme
+
+When the terminal pane has space, Clawd stands to the left of the menu.
+Clawd plays the band's notice while one shows, sips while warming is on, and dozes after warming stops.
+
+The mug and the steam follow the Claude Code theme.
+A light theme draws them for a light background.
+With the `auto` theme, a light background in `COLORFGBG` does the same.
+Under `auto`, Claude Code also asks the terminal for its background, but plugins cannot read the answer.
+Thus a terminal that does not set `COLORFGBG` gets the dark colors.
+
+<br>
+
+## ⚙️ Settings
+
+| Page | What it changes |
+|---|---|
+| 🌐 Global configuration | The saved settings for new sessions, in the plugin's `/config` rows |
+| 🗂️ Session configuration | Only the current session. The saved default does not change. |
+
+### 🌐 Global configuration
+
+You can set the default cache time in three ways:
+
+- the Default lifetime buttons on the Global page
+- the `/config` row `cache-warmer.ttl`
+- the command `/cache-warmer 5m` or `/cache-warmer 1h`
+
+The page and `/config` save the default also after the session's cache time is locked.
+The current session follows the change only while its cache time is unlocked.
+The command also sets the current session, and it refuses while the cache time is locked.
+
+### 🗂️ Session configuration
+
+This page shows the cache time, the refresh interval, the idle limit, and the next refresh or the stop reason.
+It also shows a warning when `FORCE_PROMPT_CACHING_5M` is set.
+
+<br>
+
+## ⏳ Cache time
+
+|  | 5 minutes | 1 hour |
+|---|---|---|
+| ⏰ Refresh after | 4m30s | 54m |
+| ✍️ Cache write price | 1.25× the input price | 2× the input price |
+| 💤 Warm time when idle, with the default idle limit | 27m30s | 5h30m |
+
+- 🔧 The mod sets `CLAUDE_CODE_PROMPT_CACHE_TTL` for this Claude Code process. This value overrides the `promptCacheTtl` setting and any value from the shell.
+- 🔁 A change applies from the next request. That request writes the cache again one time.
+- 🔒 The first main-conversation response of a session locks the cache time. The Session page then shows it with no buttons.
+- 🔓 `/clear` unlocks the cache time. A new session starts unlocked.
+- 📌 `FORCE_PROMPT_CACHING_5M=1` keeps the cache at 5 minutes for all choices. The Session page shows this.
+- ☕ A refresh extends both cache times. In a live test on 2026-10-05, a refresh in the default 5-minute subagent bucket kept a 1-hour cache warm past 60 minutes. A session without the mod wrote that cache again.
+- ⚠️ If a refresh reads less than half of the prefix, the mod reports that the cache expired and stops warming.
+
+<br>
+
+## 🧮 When it refreshes
+
+```mermaid
+flowchart TD
+    due["⏰ 90% of the cache time is over"] --> rule{"💵 Expected saving<br/>is $0.05 or more?"}
+    rule -- No --> skip["🛑 No refresh"]
+    rule -- Yes --> idle{"💤 Is the session<br/>idle?"}
+    idle -- "No, a turn runs" --> send["☕ Refresh"]
+    idle -- Yes --> left{"🔢 Idle refreshes left?"}
+    left -- Yes --> send
+    left -- No --> skip
+```
+
+A refresh is due at 90% of the cache time: every 4m30s for 5 minutes, and every 54m for 1 hour.
+At that time, the mod applies the rule from Pi:
+
+```text
+chance of another request before expiry × extra cost to write the prefix again − refresh cost ≥ $0.05
+```
+
+- 🎲 The chance is 100% while a turn runs, and 15% while the session is idle.
+- 📏 Thus each model has a break-even prompt size. A prompt with fewer tokens gets no refresh. The stop reason shows the size for a running turn and for an idle session.
+- 💲 The size depends on the model price. An idle cache needs a much larger prompt than a running turn.
+- ✅ The mod checks the size when a response arrives, before it queues a refresh.
+
+### 💤 Idle limit
+
+While the session is idle, each cache time gets a maximum number of refreshes after the last prompt request.
+This number is the **idle limit**.
+
+- The Global page sets each limit from 0 to 20. The default is 5.
+- The `/config` rows are `cache-warmer.idle5m` and `cache-warmer.idle1h`.
+- Beside each limit, the page shows how long an idle cache stays warm: the limit × the refresh interval, plus one cache time.
+- Each idle refresh must also pass the $0.05 rule.
+
+While a turn runs, warming stops 60 minutes after the last prompt request, or after two cache times if that is longer.
+
+### 🛑 Warming also stops after
+
+- compaction
+- `/clear`
+- a model change
+- a refresh that failed or found the cache expired
+- a timer that fired too late
+
+The next request starts warming again.
+
+A refresh has no output limit.
+Thus the cost estimate includes the output tokens of the previous refresh.
+In one test, an Opus refresh at high effort used 182 output tokens.
+
+<br>
+
+## 📊 Analytics
+
+The Analytics page shows this session and all time, side by side.
+The all-time totals stay in the plugin store, from the date that the page shows.
+Costs are estimates at the API list prices in `hooks/warmer.ts`. They are not subscription charges.
 
 | Row | Meaning |
-| --- | --- |
-| Refreshes | Refreshes sent. |
-| Warming fee | What the refreshes cost. |
-| no prompt followed | The fees of refresh chains that no kept prompt followed. |
-| Prompts kept | Prompts that read the cache after the point where, without refreshes, it would have expired. |
-| Rewrites avoided | For each kept prompt, the cached tokens it read times the write price minus the read price. |
-| Net saved | Rewrites avoided minus the warming fee. |
+|---|---|
+| 🔁 Refreshes | The number of refreshes sent |
+| 💸 Warming fee | The cost of these refreshes |
+| 🗑️ no prompt followed | The fees of refresh chains that no kept prompt followed |
+| ✅ Prompts kept | Prompts that read the cache after the time when it would have expired with no refreshes |
+| ♻️ Rewrites avoided | For each kept prompt: the cached tokens it read × (write price − read price) |
+| 💰 Net saved | Rewrites avoided − warming fee |
 
-A refresh chain is the refreshes between two prompt requests.
-The next prompt either keeps the chain or wastes its fee.
-`/clear`, compaction and a model switch waste a chain's fee at once, and a chain still running counts as neither.
+A **refresh chain** is the refreshes between two prompt requests.
 
-## Debug mode
+```mermaid
+flowchart LR
+    p1["💬 Prompt"] --> chain["☕ ☕ ☕<br/>refresh chain"] --> next{"What comes next?"}
+    next -- "💬 a prompt" --> read{"📖 Did it read the cache<br/>after the time it<br/>would have expired?"}
+    read -- Yes --> kept["✅ The chain is kept"]
+    read -- No --> wasted
+    next -- "🧹 /clear, compaction,<br/>or a model change" --> wasted["🗑️ The fee is wasted"]
+```
 
-The Debug mode menu item turns debug mode on and opens its page; Turn off ends it.
-The page lists the newest refreshes that fit the pane, with their age, result, tokens read and written, output tokens, cost and estimated saving.
-A refresh saves only when a prompt follows before expiry.
-While debug mode is on, the mod appends one JSON line per refresh and per stop to
-`<config>/cache-warmer/debug/<session id>.jsonl`, where `<config>` is `CLAUDE_CONFIG_DIR` or `~/.claude`.
-A refresh line has its time, model, token usage, cost, saving, result, phase and lifetime; a stop line has its time and reason.
-A failed write is reported in a log line, and warming continues.
+A chain that still runs counts as neither kept nor wasted.
 
-The mod cannot see `/rewind`; after one, refreshes keep the later prefix warm until the next request.
+<br>
 
-## What it sends and stores
+## 🐞 Debug mode
 
-Each refresh is a fork of the main conversation's last request, sent through
-Claude Code to the model the conversation uses, with the prompt
-"Prompt cache refresh. Reply with the single word ok."
-It counts against your Claude plan or API key like any other request.
-The mod makes no other network requests and sends no telemetry.
-It sets `CLAUDE_CODE_PROMPT_CACHE_TTL` for the running Claude Code process,
-keeps all-time totals in its plugin store, appends one notice row per refresh to the transcript,
-and writes the debug log described above only while debug mode is on.
-Setting both idle limits to 0 stops idle refreshes; disabling the plugin stops all of them.
+- The Debug mode menu item turns debug mode on and opens its page. Turn off stops it.
+- The page lists the newest refreshes that fit the pane: age, result, tokens read and written, output tokens, cost, and estimated saving.
+- A refresh saves money only when a prompt comes before the cache expires.
+- While debug mode is on, the mod adds one JSON line for each refresh and each stop to `<config>/cache-warmer/debug/<session id>.jsonl`. `<config>` is `CLAUDE_CONFIG_DIR` or `~/.claude`.
+- A refresh line has its time, model, token use, cost, saving, result, phase, and cache time. A stop line has its time and reason.
+- If a write fails, the mod reports it in a log line, and warming continues.
 
-## Credits
+> ⚠️ The mod cannot see `/rewind`.
+> After a rewind, refreshes keep the later prefix warm until the next request.
 
-The refresh timing, the $0.05 rule and the idea of an idle limit come from the cache warmer in
-[Pi](https://github.com/earendil-works/pi) by Mario Zechner.
-cache-warmer ports them to a Claude Code mod and counts idle refreshes instead of stopping at 30 minutes;
-it copies no Pi code.
+<br>
 
-## Support
+## 🔐 What it sends and stores
+
+The mod sends each refresh automatically.
+Each refresh is a fork of the last request of the main conversation, and you pay for it like any request.
+Claude Code sends it to the model that the conversation uses, with this prompt:
+
+> Prompt cache refresh. Reply with the single word ok.
+
+| | |
+|---|---|
+| 📤 Sends | Only the refresh requests. No other network requests and no telemetry. |
+| 💳 Bills | Each refresh counts against your Claude plan or API key, like all other requests. |
+| 🔧 Sets | `CLAUDE_CODE_PROMPT_CACHE_TTL` for the running Claude Code process |
+| 💾 Stores | The all-time totals in the plugin store, one notice row for each refresh in the transcript, and the debug log only while debug mode is on |
+| 🛑 Stops | Set both idle limits to 0 to stop idle refreshes. Disable the plugin to stop all refreshes. |
+
+<br>
+
+## 🙏 Credits
+
+The refresh timing, the $0.05 rule, and the idea of an idle limit come from the cache warmer in [Pi](https://github.com/earendil-works/pi) by Mario Zechner.
+cache-warmer ports them to a Claude Code mod and counts idle refreshes instead of stopping at 30 minutes.
+It copies no Pi code.
+
+## 💬 Support
 
 Report problems at [github.com/paulbkim-dev/claude-code-cache-warmer/issues](https://github.com/paulbkim-dev/claude-code-cache-warmer/issues).
-Cache Warmer is released under the [MIT License](LICENSE).
+cache-warmer is released under the [MIT License](LICENSE).
