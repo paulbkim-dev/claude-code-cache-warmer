@@ -1,6 +1,6 @@
 {
   "name": "cache-warmer",
-  "version": "0.11.2",
+  "version": "0.12.0",
   "description": "Keep the main conversation's prompt cache warm by automatically forking its last request, tools denied and billed like any request, shortly before the cache expires; switch its lifetime between 5m and 1h, and show each refresh's cost and estimated saving.",
   "author": {
     "name": "Paul B. Kim"
@@ -15,7 +15,7 @@
       "type": "string",
       "title": "Prompt cache lifetime",
       "description": "Main-conversation cache lifetime this mod sets; refreshes run at 90% of it. 1h writes cost 2x input instead of 1.25x.",
-      "default": "5m",
+      "default": "1h",
       "options": ["5m", "1h"]
     },
     "idle5m": {

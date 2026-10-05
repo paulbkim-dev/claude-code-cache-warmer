@@ -22,64 +22,74 @@ const rowOf = (key: string, value: ConfigValue): ConfigRow => ({
   isLocked: false,
 });
 
-test("the open pane animates Clawd beside the menu, not on a sub-page, until it closes", async ($, on) => {
-  const { blits, clock, prompt } = world(on);
-  await start($);
-  await prompt($, "t1");
-  await clock.advance(30 * MINUTE);
-  await toggle($);
-  const desktop = await mountPane($, "desktop");
-  expect(await desktop.find({ type: "Raster" })).toBeUndefined();
-  await desktop.unmount();
-  const pane = await mountPane($, "terminal", { columns: 120, bodyRows: 11 });
-  expect(
-    (await pane.find({ type: "Raster", key: "mascot" }))?.props,
-  ).toMatchObject({ columns: 28, rows: 7 });
-  await clock.advance(200);
-  expect(
-    blits.filter(({ requestId }) => requestId === "cache-warmer").length,
-  ).toBe(6);
-  await pane.press({ key: "menu:config" });
-  expect(await pane.find({ type: "Raster" })).toBeUndefined();
-  const before = blits.length;
-  await clock.advance(200);
-  expect(blits).toHaveLength(before);
-  await pane.press({ key: "back" });
-  expect(await pane.find({ type: "Raster" })).toBeDefined();
-  expect((await toggle($)).text).toBe("Cache warmer closed.");
-  const painted = blits.length;
-  await clock.advance(1000);
-  expect(blits).toHaveLength(painted);
-  await pane.unmount();
-});
-
-test("Clawd stands beside the menu in a wide pane, above it in a narrow tall one, and nowhere when rows run out", async ($, on) => {
-  const { prompt } = world(on);
-  await start($);
-  await prompt($, "t1", turnUsage(SONNET, 299_000, 1000));
-  await toggle($);
-  // At 60 columns 30 stay beside Clawd, who needs his seven rows; the column beside him scrolls.
-  // At 59 Clawd and a blank row stand above the seven rows of the header and menu and the reason's three rows.
-  for (const [columns, bodyRows, direction] of [
-    [60, 12, "row"],
-    [60, 7, "row"],
-    [60, 6, undefined],
-    [59, 18, "column"],
-    [59, 17, undefined],
-    [27, 40, undefined],
-  ] as const) {
-    const pane = await mountPane($, "terminal", { columns, bodyRows });
-    expect(await pane.find({ text: /^Stopped: 300\.0k tokens/ })).toBeDefined();
-    expect((await pane.find({ type: "Raster" })) !== undefined).toBe(
-      direction !== undefined,
-    );
-    if (direction)
-      expect(await pane.find({ type: "Box" })).toMatchObject({
-        props: { flexDirection: direction },
-      });
+test(
+  "the open pane animates Clawd beside the menu, not on a sub-page, until it closes",
+  { options: { ttl: "5m" } },
+  async ($, on) => {
+    const { blits, clock, prompt } = world(on);
+    await start($);
+    await prompt($, "t1");
+    await clock.advance(30 * MINUTE);
+    await toggle($);
+    const desktop = await mountPane($, "desktop");
+    expect(await desktop.find({ type: "Raster" })).toBeUndefined();
+    await desktop.unmount();
+    const pane = await mountPane($, "terminal", { columns: 120, bodyRows: 11 });
+    expect(
+      (await pane.find({ type: "Raster", key: "mascot" }))?.props,
+    ).toMatchObject({ columns: 28, rows: 7 });
+    await clock.advance(200);
+    expect(
+      blits.filter(({ requestId }) => requestId === "cache-warmer").length,
+    ).toBe(6);
+    await pane.press({ key: "menu:config" });
+    expect(await pane.find({ type: "Raster" })).toBeUndefined();
+    const before = blits.length;
+    await clock.advance(200);
+    expect(blits).toHaveLength(before);
+    await pane.press({ key: "back" });
+    expect(await pane.find({ type: "Raster" })).toBeDefined();
+    expect((await toggle($)).text).toBe("Cache warmer closed.");
+    const painted = blits.length;
+    await clock.advance(1000);
+    expect(blits).toHaveLength(painted);
     await pane.unmount();
-  }
-});
+  },
+);
+
+test(
+  "Clawd stands beside the menu in a wide pane, above it in a narrow tall one, and nowhere when rows run out",
+  { options: { ttl: "5m" } },
+  async ($, on) => {
+    const { prompt } = world(on);
+    await start($);
+    await prompt($, "t1", turnUsage(SONNET, 299_000, 1000));
+    await toggle($);
+    // At 60 columns 30 stay beside Clawd, who needs his seven rows; the column beside him scrolls.
+    // At 59 Clawd and a blank row stand above the seven rows of the header and menu and the reason's three rows.
+    for (const [columns, bodyRows, direction] of [
+      [60, 12, "row"],
+      [60, 7, "row"],
+      [60, 6, undefined],
+      [59, 18, "column"],
+      [59, 17, undefined],
+      [27, 40, undefined],
+    ] as const) {
+      const pane = await mountPane($, "terminal", { columns, bodyRows });
+      expect(
+        await pane.find({ text: /^Stopped: 300\.0k tokens/ }),
+      ).toBeDefined();
+      expect((await pane.find({ type: "Raster" })) !== undefined).toBe(
+        direction !== undefined,
+      );
+      if (direction)
+        expect(await pane.find({ type: "Box" })).toMatchObject({
+          props: { flexDirection: direction },
+        });
+      await pane.unmount();
+    }
+  },
+);
 
 // A docked pane sits on Claude Code's sidebar background, which Clawd's empty cells take.
 for (const [theme, colors, drawn, background] of [

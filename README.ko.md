@@ -95,7 +95,7 @@ Debug mode              켜기와 끄기
 | 캐시 쓰기 가격 | 입력 가격의 1.25배 | 입력 가격의 2배 |
 | 쉬는 동안 따뜻하게 남는 시간(기본 한도) | 27분 30초 | 5시간 30분 |
 
-- 기본값은 Configuration 페이지의 Global 부분, `/config`의 `cache-warmer.ttl` 항목, 또는 `/cache-warmer 5m`, `/cache-warmer 1h` 명령어로 정해요. 명령어는 지금 세션도 함께 바꿔요.
+- 기본값은 1시간이에요. Configuration 페이지의 Global 부분, `/config`의 `cache-warmer.ttl` 항목, 또는 `/cache-warmer 5m`, `/cache-warmer 1h` 명령어로 바꿔요. 명령어는 지금 세션도 함께 바꿔요.
 - 세션에서 메인 대화의 첫 응답이 오면 캐시 시간이 잠겨요. `/clear`를 하거나 새 세션을 열면 잠금이 풀려요. 잠겨 있는 동안 명령어는 거부되고, 새 기본값은 다음 세션부터 적용돼요.
 - 이 모드는 실행 중인 Claude Code 프로세스에 `CLAUDE_CODE_PROMPT_CACHE_TTL`을 설정해서 `promptCacheTtl`과 셸에서 온 값보다 우선해요. 바꾼 값은 다음 요청부터 적용되고, 그 요청이 캐시를 한 번 다시 써요.
 - `FORCE_PROMPT_CACHING_5M=1`이면 캐시는 늘 5분이고, Configuration 페이지에도 그렇게 나와요.

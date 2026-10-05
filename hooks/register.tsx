@@ -80,10 +80,10 @@ const PREVIEW_COLD_MS = 11_500;
 // How long before the pane opened a stopped warmer's Clawd fell asleep, so he shows already dozing.
 const DOZED_MS = 2000;
 
-const ttl = atom({ plugin: "cache-warmer", key: "ttl" } as const, "5m");
+const ttl = atom({ plugin: "cache-warmer", key: "ttl" } as const, "1h");
 const defaultTtl = atom(
   { plugin: "cache-warmer", key: "defaultTtl" } as const,
-  "5m",
+  "1h",
 );
 const isSessionTtl = atom(
   { plugin: "cache-warmer", key: "isSessionTtl" } as const,
@@ -1081,7 +1081,7 @@ const arrowToFocus = async (
 
 export const register: Register = (on, options) => {
   const chosen = String(options.ttl);
-  const option = isTtl(chosen) ? chosen : "5m";
+  const option = isTtl(chosen) ? chosen : "1h";
   const limits = {
     "5m": limitOf(options.idle5m ?? IDLE_LIMIT_DEFAULT),
     "1h": limitOf(options.idle1h ?? IDLE_LIMIT_DEFAULT),
