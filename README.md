@@ -57,6 +57,7 @@ To stop all warming, run `claude plugin disable cache-warmer`.
 
 During a refresh, a band above the prompt shows Clawd, the Claude Code mascot, beside a notice that the mod is resending the cached prompt.
 It shows the cache time in color (`5m` cyan, `1h` magenta), the refresh interval, and the outcome: yellow while the refresh runs, green when the cache is warm, and red when it expired or failed.
+A failed refresh names the API error and its status, such as `rate_limit 429`.
 During a turn, the band goes 5 seconds after the refresh.
 In an idle session it stays until your next prompt, with Clawd still after 5 seconds.
 The pane's main page shows Clawd too.

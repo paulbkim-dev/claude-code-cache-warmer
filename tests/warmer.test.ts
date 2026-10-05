@@ -281,6 +281,30 @@ test("a refresh that found the cache expired stops warming until the next prompt
   await pane.unmount();
 });
 
+test("a refresh the API refused names the error and its status in the band", async ($, on) => {
+  const { clock, prompt, replies } = world(on);
+  await start($);
+  replies.push({
+    isAnswered: false,
+    reason: "api-error",
+    status: 429,
+    error: "rate_limit",
+    usage: {
+      input_tokens: 0,
+      output_tokens: 0,
+      cache_read_input_tokens: 0,
+      cache_creation_input_tokens: 0,
+    },
+  });
+  await prompt($, "t1");
+  await clock.advance(270_000);
+  const band = await mountBand($);
+  expect((await band.find({ text: /^☕ cache warmer / }))?.text).toBe(
+    "☕ cache warmer 5m every 4m30s · Cache refresh failed · rate_limit 429 · read 0 · $0.00",
+  );
+  await band.unmount();
+});
+
 test("a turn that ends while a refresh settles waits for it instead of forking again", async ($, on) => {
   const { clock, forks, holdStoreSet } = world(on);
   await start($);

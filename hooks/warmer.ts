@@ -229,7 +229,10 @@ export const noticeOf = (entry: Refresh): Pick<Notice, "head" | "detail"> => {
       detail: `the refresh rewrote it · ${cost}`,
     };
   if (entry.result === "failed")
-    return { head: "Cache refresh failed", detail: cost };
+    return {
+      head: "Cache refresh failed",
+      detail: entry.detail ? `${entry.detail} · ${cost}` : cost,
+    };
   return {
     head: "Cache warmed",
     detail: `${cost} · saves ${entry.savesUsd === null ? "unknown" : formatUsd(entry.savesUsd)} vs rewrite`,
