@@ -74,7 +74,7 @@ test("the idle limit stops warming after that many idle refreshes; + raises it",
   expect(forks).toHaveLength(11);
 });
 
-test("the New sessions default lifetime saves even when locked; this session follows only while unlocked", async ($, on) => {
+test("the Global default lifetime saves even when locked; this session follows only while unlocked", async ($, on) => {
   const { configSets, envSets, prompt } = world(on);
   on("session.end", (_, e) => ({ sessionId: e.sessionId }));
   await start($);

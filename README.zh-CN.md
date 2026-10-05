@@ -95,7 +95,7 @@ Debug mode              开启或关闭
 | 缓存写入价格 | 1.25× 输入价格 | 2× 输入价格 |
 | 空闲保持预热时长（默认上限） | 27m30s | 5h30m |
 
-- 可在 Configuration 页面的 New sessions 下设置默认值，也可通过 `/config` 中的 `cache-warmer.ttl` 配置项，或使用 `/cache-warmer 5m` / `/cache-warmer 1h` 命令进行设置。该命令同时也会修改当前会话。
+- 可在 Configuration 页面的 Global 下设置默认值，也可通过 `/config` 中的 `cache-warmer.ttl` 配置项，或使用 `/cache-warmer 5m` / `/cache-warmer 1h` 命令进行设置。该命令同时也会修改当前会话。
 - 主会话生成首次回复后，该会话的缓存时间即被锁定。执行 `/clear` 或开启新会话可解除锁定。锁定期间命令将拒绝修改，此时设置的新默认值仅适用于后续新会话。
 - 插件会为当前运行的 Claude Code 进程设置 `CLAUDE_CODE_PROMPT_CACHE_TTL`，因此其优先级高于 `promptCacheTtl` 及 Shell 环境变量。修改将在下一次请求时生效，该请求会重新写入一次缓存。
 - 若设置了 `FORCE_PROMPT_CACHING_5M=1`，缓存将固定为 5 分钟，Configuration 页面也会显示相应提示。

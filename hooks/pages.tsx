@@ -92,7 +92,7 @@ const configPageOf = (
         </Text>
       )}
       <Box key="defaults" marginTop={1}>
-        <Text bold>New sessions</Text>
+        <Text bold>Global</Text>
       </Box>
       <Box key="default" flexDirection="row">
         {label(LABELS.default)}
