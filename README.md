@@ -2,7 +2,7 @@
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/clawd-dark.gif">
-  <img alt="Clawd, the Claude Code mascot, sips from a steaming mug while the cache warms, hops under a heart of steam once it is warm, and dozes when it expired" src="assets/clawd-light.gif" width="274">
+  <img alt="Clawd, the Claude Code mascot, in the refreshing, warm, and expired states" src="assets/clawd-light.gif" width="274">
 </picture>
 
 # cache-warmer
@@ -59,12 +59,6 @@ During a refresh, a band above the prompt shows Clawd, the Claude Code mascot, b
 It shows the cache time in color (`5m` cyan, `1h` magenta), the refresh interval, and the outcome: yellow while the refresh runs, green when the cache is warm, and red when it expired or failed.
 The band goes 5 seconds after the refresh.
 The pane's main page shows Clawd too.
-
-| Clawd | Meaning |
-|---|---|
-| Sips from a steaming mug | A refresh runs. |
-| Hops under a heart of steam | The cache is warm. |
-| Dozes with a cold mug | The cache expired, or the refresh failed. |
 
 - The refresh never enters the conversation. The transcript keeps one notice row per refresh, starting with ☕, and no request sends it to the model.
 - The band has three styles, set on the Configuration page or in the `/config` row `cache-warmer.band`: `default` shows Clawd beside the notice, `simplified` shows the notice as one line, and `off` hides the band.

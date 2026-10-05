@@ -2,7 +2,7 @@
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/clawd-dark.gif">
-  <img alt="Claude Code 마스코트 Clawd가 캐시를 데우는 동안 김이 나는 머그잔을 홀짝이고, 캐시가 따뜻해지면 김으로 그린 하트 아래에서 깡충 뛰고, 캐시가 만료되면 꾸벅꾸벅 졸아요" src="assets/clawd-light.gif" width="274">
+  <img alt="Claude Code 마스코트 Clawd의 갱신 중, 캐시 따뜻함, 만료 상태" src="assets/clawd-light.gif" width="274">
 </picture>
 
 # cache-warmer
@@ -59,12 +59,6 @@ Claude Code를 다시 시작한 뒤 `/cache-warmer`를 입력하면 패널이 �
 캐시 시간을 색으로 보여 주고(`5m` 청록, `1h` 자홍), 갱신 간격과 결과도 보여 줘요. 갱신 중에는 노랑, 캐시가 따뜻하면 초록, 만료되거나 실패하면 빨강이에요.
 띠는 갱신이 끝나고 5초 뒤에 사라져요.
 패널 첫 화면에도 Clawd가 나타나요.
-
-| Clawd | 뜻 |
-|---|---|
-| 김이 나는 머그잔을 홀짝여요 | 갱신하고 있어요. |
-| 김으로 그린 하트 아래에서 깡충 뛰어요 | 캐시가 따뜻해요. |
-| 식은 머그잔 옆에서 졸아요 | 캐시가 만료됐거나 갱신에 실패했어요. |
 
 - 갱신 요청은 대화에 끼어들지 않아요. 대화 기록에는 갱신마다 ☕로 시작하는 알림 줄이 하나씩 남고, 이 줄은 어떤 요청에도 실려 모델로 가지 않아요.
 - 띠는 세 가지 모양이 있고 Configuration 페이지나 `/config`의 `cache-warmer.band` 항목에서 골라요. `default`는 Clawd와 알림을, `simplified`는 알림 한 줄만 보여 주고, `off`는 띠를 숨겨요.

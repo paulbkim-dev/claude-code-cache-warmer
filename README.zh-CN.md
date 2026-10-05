@@ -2,7 +2,7 @@
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/clawd-dark.gif">
-  <img alt="Claude Code 吉祥物 Clawd：缓存预热时捧着热气腾腾的马克杯小啜，预热完成后在爱心蒸汽下欢跳，缓存过期后打起瞌睡" src="assets/clawd-light.gif" width="274">
+  <img alt="Claude Code 吉祥物 Clawd 的刷新中、已预热、已过期三种状态" src="assets/clawd-light.gif" width="274">
 </picture>
 
 # cache-warmer
@@ -59,12 +59,6 @@ claude plugin install cache-warmer@claude-code-cache-warmer
 它以彩色显示缓存时间（`5m` 为青色，`1h` 为品红）、刷新间隔以及结果状态：刷新进行中为黄色，缓存保持预热为绿色，过期或失败为红色。
 提示栏会在刷新结束 5 秒后消失。
 面板的主页面同样会显示 Clawd。
-
-| Clawd | 含义 |
-|---|---|
-| 捧着热气腾腾的马克杯小啜 | 正在执行刷新。 |
-| 在爱心蒸汽下欢跳 | 缓存处于预热状态。 |
-| 守着冰凉的马克杯打瞌睡 | 缓存已过期，或刷新失败。 |
 
 - 刷新请求绝不会混入对话中。会话记录中每次刷新仅保留一行以 ☕ 开头的通知，且绝不会作为请求内容发送给模型。
 - 提示栏提供三种样式，可在 Configuration 页面或 `/config` 的 `cache-warmer.band` 配置项中设置：`default` 显示 Clawd 及通知，`simplified` 以单行显示通知，`off` 则隐藏提示栏。
