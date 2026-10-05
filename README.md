@@ -120,7 +120,7 @@ It also shows a warning when `FORCE_PROMPT_CACHING_5M` is set.
 
 <br>
 
-## ⏳ Cache time
+## Cache time
 
 |  | 5 minutes | 1 hour |
 |---|---|---|
@@ -128,17 +128,17 @@ It also shows a warning when `FORCE_PROMPT_CACHING_5M` is set.
 | ✍️ Cache write price | 1.25× the input price | 2× the input price |
 | 💤 Warm time when idle, with the default idle limit | 27m30s | 5h30m |
 
-- 🔧 The mod sets `CLAUDE_CODE_PROMPT_CACHE_TTL` for this Claude Code process. This value overrides the `promptCacheTtl` setting and any value from the shell.
-- 🔁 A change applies from the next request. That request writes the cache again one time.
-- 🔒 The first main-conversation response of a session locks the cache time. The Session page then shows it with no buttons.
-- 🔓 `/clear` unlocks the cache time. A new session starts unlocked.
-- 📌 `FORCE_PROMPT_CACHING_5M=1` keeps the cache at 5 minutes for all choices. The Session page shows this.
-- ☕ A refresh extends both cache times. In a live test on 2026-10-05, a refresh in the default 5-minute subagent bucket kept a 1-hour cache warm past 60 minutes. A session without the mod wrote that cache again.
-- ⚠️ If a refresh reads less than half of the prefix, the mod reports that the cache expired and stops warming.
+- The mod sets `CLAUDE_CODE_PROMPT_CACHE_TTL` for this Claude Code process. This value overrides the `promptCacheTtl` setting and any value from the shell.
+- A change applies from the next request. That request writes the cache again one time.
+- The first main-conversation response of a session locks the cache time. The Session page then shows it with no buttons.
+- `/clear` unlocks the cache time. A new session starts unlocked.
+- `FORCE_PROMPT_CACHING_5M=1` keeps the cache at 5 minutes for all choices. The Session page shows this.
+- A refresh extends both cache times. In a live test on 2026-10-05, a refresh in the default 5-minute subagent bucket kept a 1-hour cache warm past 60 minutes. A session without the mod wrote that cache again.
+- If a refresh reads less than half of the prefix, the mod reports that the cache expired and stops warming.
 
 <br>
 
-## 🧮 When it refreshes
+## When it refreshes
 
 ```mermaid
 flowchart TD
@@ -158,12 +158,12 @@ At that time, the mod applies the rule from Pi:
 chance of another request before expiry × extra cost to write the prefix again − refresh cost ≥ $0.05
 ```
 
-- 🎲 The chance is 100% while a turn runs, and 15% while the session is idle.
-- 📏 Thus each model has a break-even prompt size. A prompt with fewer tokens gets no refresh. The stop reason shows the size for a running turn and for an idle session.
-- 💲 The size depends on the model price. An idle cache needs a much larger prompt than a running turn.
-- ✅ The mod checks the size when a response arrives, before it queues a refresh.
+- The chance is 100% while a turn runs, and 15% while the session is idle.
+- Thus each model has a break-even prompt size. A prompt with fewer tokens gets no refresh. The stop reason shows the size for a running turn and for an idle session.
+- The size depends on the model price. An idle cache needs a much larger prompt than a running turn.
+- The mod checks the size when a response arrives, before it queues a refresh.
 
-### 💤 Idle limit
+### Idle limit
 
 While the session is idle, each cache time gets a maximum number of refreshes after the last prompt request.
 This number is the **idle limit**.
@@ -175,7 +175,7 @@ This number is the **idle limit**.
 
 While a turn runs, warming stops 60 minutes after the last prompt request, or after two cache times if that is longer.
 
-### 🛑 Warming also stops after
+### Warming also stops after
 
 - compaction
 - `/clear`
@@ -191,37 +191,7 @@ In one test, an Opus refresh at high effort used 182 output tokens.
 
 <br>
 
-## 📊 Analytics
-
-The Analytics page shows this session and all time, side by side.
-The all-time totals stay in the plugin store, from the date that the page shows.
-Costs are estimates at the API list prices in `hooks/warmer.ts`. They are not subscription charges.
-
-| Row | Meaning |
-|---|---|
-| 🔁 Refreshes | The number of refreshes sent |
-| 💸 Warming fee | The cost of these refreshes |
-| 🗑️ no prompt followed | The fees of refresh chains that no kept prompt followed |
-| ✅ Prompts kept | Prompts that read the cache after the time when it would have expired with no refreshes |
-| ♻️ Rewrites avoided | For each kept prompt: the cached tokens it read × (write price − read price) |
-| 💰 Net saved | Rewrites avoided − warming fee |
-
-A **refresh chain** is the refreshes between two prompt requests.
-
-```mermaid
-flowchart LR
-    p1["💬 Prompt"] --> chain["☕ ☕ ☕<br/>refresh chain"] --> next{"What comes next?"}
-    next -- "💬 a prompt" --> read{"📖 Did it read the cache<br/>after the time it<br/>would have expired?"}
-    read -- Yes --> kept["✅ The chain is kept"]
-    read -- No --> wasted
-    next -- "🧹 /clear, compaction,<br/>or a model change" --> wasted["🗑️ The fee is wasted"]
-```
-
-A chain that still runs counts as neither kept nor wasted.
-
-<br>
-
-## 🐞 Debug mode
+## Debug mode
 
 - The Debug mode menu item turns debug mode on and opens its page. Turn off stops it.
 - The page lists the newest refreshes that fit the pane: age, result, tokens read and written, output tokens, cost, and estimated saving.
@@ -235,7 +205,7 @@ A chain that still runs counts as neither kept nor wasted.
 
 <br>
 
-## 🔐 What it sends and stores
+## What it sends and stores
 
 The mod sends each refresh automatically.
 Each refresh is a fork of the last request of the main conversation, and you pay for it like any request.
