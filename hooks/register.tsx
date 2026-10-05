@@ -30,7 +30,14 @@ import type {
 import { MASCOT_ROWS, TERMINAL_DEFAULT, cellsOf } from "./mascot";
 import { paneOf } from "./pages";
 import type { Mascot, PaneActions, PaneData } from "./pane";
-import { MASCOT_KEY, bandOf, layoutOf, mascotBandOf, rasterOf } from "./pane";
+import {
+  MASCOT_KEY,
+  bandOf,
+  focusRowsOf,
+  layoutOf,
+  mascotBandOf,
+  rasterOf,
+} from "./pane";
 import type { ForkReply } from "./warmer";
 import {
   DEFAULT_OUTPUT_TOKENS,
@@ -136,6 +143,9 @@ let theme = "dark";
 // color behind him there; blits repaint him in each.
 const sites = new Map<string, number>();
 let paneSince = 0;
+// The pane's Buttons by row as last drawn, and the one holding its focus ring.
+let focusRows: string[][] = [];
+let focused: string | undefined;
 let isPainting = false;
 let syncs = 0;
 // The anchor a refresh has claimed, one object per refresh; schedule() leaves
@@ -952,7 +962,31 @@ const renderPane = async (
     chooseSession: (value) => void chooseSessionTtl($, value),
     setLimit: (limitTtl, count) => void setLimit($, limitTtl, count),
   };
-  return paneOf($.ui.resolve(e), data, actions, mascot);
+  const tree = paneOf($.ui.resolve(e), data, actions, mascot);
+  const drawn = focusRowsOf(tree);
+  focusRows = drawn.rows;
+  // A page's autoFocus Button takes the ring without raising ui.focus.
+  if (!focusRows.flat().includes(focused ?? "")) focused = drawn.initial;
+  return tree;
+};
+
+// An arrow over a pane taller than its window scrolls it, leaving the focus
+// behind out of sight; it moves the focus a row instead, which brings it into
+// view. The wheel, and an arrow past the first or last row, still scroll.
+const arrowToFocus = async (
+  $: EngineInterface,
+  e: Frozen<Args<"ui.scroll">>,
+  next: Next<"ui.scroll">,
+) => {
+  if (e.origin.kind !== "person" || e.pointer || Math.abs(e.by) !== 1)
+    return next(e);
+  const index = focusRows.findIndex((row) => row.includes(focused ?? ""));
+  const from = focusRows[index]?.indexOf(focused ?? "") ?? 0;
+  const row = focusRows[index + e.by];
+  const key = row?.[Math.min(from, row.length - 1)];
+  if (index < 0 || !key) return next(e);
+  const answer = await $.ui.focus({ requestId: PANE, key });
+  return answer.deny === undefined ? {} : next(e);
 };
 
 export const register: Register = (on, options) => {
@@ -1014,6 +1048,12 @@ export const register: Register = (on, options) => {
     async ($, e, next) => (await renderBand($, e)) ?? next(e),
   );
   on("ui.render", { component: "Pane", requestId: PANE }, renderPane);
+  on("ui.focus", { component: "Pane", requestId: PANE }, async ($, e, next) => {
+    const answer = await next(e);
+    if (answer.deny === undefined) focused = e.element;
+    return answer;
+  });
+  on("ui.scroll", { component: "Pane", requestId: PANE }, arrowToFocus);
   on("ui.close", { id: PANE }, async ($, e, next) => {
     const answer = await next(e);
     await syncAnimation($);

@@ -2,6 +2,7 @@ import { expect, test } from "claude-code/testing";
 import type { ConfigRow, ConfigValue } from "claude-code";
 
 import { TERMINAL_DEFAULT, cellsOf } from "../hooks/mascot";
+import { focusRowsOf } from "../hooks/pane";
 import {
   MINUTE,
   SONNET,
@@ -103,3 +104,23 @@ for (const [theme, colors, drawn, background] of [
     expect(blits).toHaveLength(0);
     await pane.unmount();
   });
+
+test("the Configuration page's Buttons group by row for the arrows, starting at Back", async ($, on) => {
+  world(on);
+  await start($);
+  await toggle($);
+  const pane = await mountPane($, "terminal", { columns: 100, bodyRows: 8 });
+  await pane.press({ key: "menu:config" });
+  expect(focusRowsOf(await pane.drawn())).toEqual({
+    rows: [
+      ["back"],
+      ["toggle:ttl"],
+      ["toggle:default"],
+      ["toggle:band"],
+      ["idle:5m:-", "idle:5m:+"],
+      ["idle:1h:-", "idle:1h:+"],
+    ],
+    initial: "back",
+  });
+  await pane.unmount();
+});

@@ -1,4 +1,4 @@
-import type { ElementTable, RenderElement } from "claude-code";
+import type { ElementTable, RenderElement, RenderNode } from "claude-code";
 
 import type {
   AllTime,
@@ -94,6 +94,32 @@ export const tableOf = (rows: string[][], isLeft: boolean[]) => {
       .join(COLUMN_GAP)
       .trimEnd(),
   );
+};
+
+// The keys of the Buttons a tree draws, in order, one list per row: a row Box
+// holds its Buttons together, and a Button anywhere else is a row by itself.
+// `initial` is the first autoFocus Button, which the ring starts on.
+export const focusRowsOf = (tree: RenderElement) => {
+  const rows: string[][] = [];
+  let initial: string | undefined;
+  // Text's string children hold no Buttons.
+  const isElement = (node: RenderNode): node is RenderElement =>
+    node instanceof Object;
+  const visit = (node: RenderElement, row: string[] | undefined) => {
+    if (node.type === "Button") {
+      if (node.props.autoFocus) initial ??= node.props.key;
+      if (row) row.push(node.props.key);
+      else rows.push([node.props.key]);
+      return;
+    }
+    if (node.type !== "Box") return;
+    const inner = node.props?.flexDirection === "row" ? [] : undefined;
+    if (inner) rows.push(inner);
+    for (const child of node.children ?? [])
+      if (isElement(child)) visit(child, inner);
+  };
+  visit(tree, undefined);
+  return { rows: rows.filter((row) => row.length > 0), initial };
 };
 
 // The pane and the band draw Clawd under one key; blits repaint him there.
