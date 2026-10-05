@@ -11,7 +11,7 @@
 
 [Blog post](https://blog.paulbkim.dev/cache-warmer/) · [Website](https://paulbkim.dev) · [X](https://x.com/paulbkimdev)
 
-English · [한국어](README.ko.md)
+English · [한국어](README.ko.md) · [简体中文](README.zh-CN.md)
 
 </div>
 
