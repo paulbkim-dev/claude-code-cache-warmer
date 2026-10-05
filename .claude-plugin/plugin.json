@@ -1,6 +1,6 @@
 {
   "name": "cache-warmer",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "description": "Keep the main conversation's prompt cache warm by automatically forking its last request, tools denied and billed like any request, shortly before the cache expires; switch its lifetime between 5m and 1h, and show each refresh's cost and estimated saving.",
   "author": {
     "name": "Paul B. Kim"

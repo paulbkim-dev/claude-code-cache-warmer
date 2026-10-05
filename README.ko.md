@@ -1,8 +1,8 @@
 <div align="center">
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="assets/bar-dark.gif">
-  <img alt="프롬프트 위 cache warmer 메뉴 바가 다음 갱신까지 남은 시간을 세고, 캐시된 프롬프트를 다시 보내는 동안 노란 줄을, 캐시가 따뜻해지면 비용과 절약액이 담긴 초록 줄을 보여 줘요" src="assets/bar-light.gif" width="914">
+  <source media="(prefers-color-scheme: dark)" srcset="assets/clawd-dark.gif">
+  <img alt="Claude Code 마스코트 Clawd가 캐시를 데우는 동안 김이 나는 머그잔을 홀짝이고, 캐시가 따뜻해지면 김으로 그린 하트 아래에서 깡충 뛰고, 캐시가 만료되면 꾸벅꾸벅 졸아요" src="assets/clawd-light.gif" width="274">
 </picture>
 
 # cache-warmer
