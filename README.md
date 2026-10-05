@@ -9,7 +9,7 @@
 
 **Keeps the Claude Code prompt cache warm during a break, so your next prompt costs less.**
 
-🇬🇧 English · 🇰🇷 [한국어](README.ko.md)
+English · [한국어](README.ko.md)
 
 </div>
 
