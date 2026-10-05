@@ -15,7 +15,7 @@ English · [한국어](README.ko.md)
 
 <br>
 
-## 🤔 What does it do?
+## What does it do?
 
 Each time you send a prompt, Claude Code sends the full conversation to the API.
 The API keeps the start of the conversation in a **prompt cache** for a short time: 5 minutes or 1 hour.
