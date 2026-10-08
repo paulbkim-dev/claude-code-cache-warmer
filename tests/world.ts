@@ -191,7 +191,13 @@ export const world = (
   on("session.start", (_, e) => ({ cwd: e.cwd }));
   const { opened, panes } = stubPanes(on);
   const blits = stubBlits(on);
-  // The test kit cannot answer a plugin's session.append, so each refresh reports the failed record here.
+  // Each refresh records a notice row in the transcript; a failed record is logged.
+  const appended: string[] = [];
+  on("session.append", (_, e, next) => {
+    const [part] = e.message.content;
+    if (part?.type === "text") appended.push(part.text);
+    return next(e);
+  });
   const logged: string[] = [];
   on("ui.log", (_, e) => {
     logged.push(e.text);
@@ -211,6 +217,7 @@ export const world = (
     holdStoreSet,
     stored,
     writes,
+    appended,
     logged,
     configSets,
     envSets,

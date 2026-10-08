@@ -56,7 +56,8 @@ test(
   "a response schedules a fork at 90% of the lifetime; the band shows its lifetime, cost and saving, holds still while idle and goes at the next prompt",
   { options: { ttl: "5m" } },
   async ($, on) => {
-    const { blits, clock, envSets, forks, logged, prompt } = world(on);
+    const { appended, blits, clock, envSets, forks, logged, prompt } =
+      world(on);
     await start($);
     expect(envSets).toEqual([["CLAUDE_CODE_PROMPT_CACHE_TTL", "5m"]]);
     await prompt($, "t1");
@@ -70,9 +71,9 @@ test(
       "☕ cache warmer 5m every 4m30s · Cache warmed · read 200.0k · $0.04 · saves $0.92 vs rewrite",
     );
     expect(await band.find({ type: "Raster" })).toBeDefined();
-    expect(logged).toEqual([
-      "Cache warmer could not record the refresh: no implementation for session.append",
-    ]);
+    expect(appended).toHaveLength(1);
+    expect(appended[0]).toMatch(/^☕ 5m · Cache warmed · /);
+    expect(logged).toEqual([]);
     await clock.advance(5000);
     expect((await band.find({ text: /^☕ cache warmer / }))?.text).toMatch(
       /· Cache warmed ·/,
