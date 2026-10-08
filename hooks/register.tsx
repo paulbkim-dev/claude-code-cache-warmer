@@ -135,6 +135,7 @@ const warming = atom({ plugin: "cache-warmer", key: "warming" } as const, {
 
 let timer: Timer | undefined;
 let animation: Timer | undefined;
+let ticker: Timer | undefined;
 let hideNotice: Timer | undefined;
 // Notices shown and prompts started this process: a timer ends only the notice
 // it was set for, and a held notice goes with the next prompt.
@@ -394,20 +395,26 @@ const paint = async ($: EngineInterface) => {
   }
 };
 
-// Frames run while the pane is open or the band shows Clawd moving with a notice.
-// A theme change shows from the next start. The latest call decides: one that
-// a later call overtook while it waited leaves the timer alone.
+// Frames run while the pane is open or the band shows Clawd moving with a notice,
+// and the pane's clock ticks only while it is open. A theme change shows from
+// the next start. The latest call decides: one that a later call overtook while
+// it waited leaves the timers alone.
 const syncAnimation = async ($: EngineInterface) => {
   const call = ++syncs;
   const shown = await liveNoticeOf($);
+  const isOpen = await isPaneOpen($);
   const isShown =
+    isOpen ||
     (shown !== null &&
       shown.heldAt === null &&
-      (await read($, bandStyle)) === "default") ||
-    (await isPaneOpen($));
+      (await read($, bandStyle)) === "default");
   const resolved = isShown && !animation ? await themeOf($) : theme;
   if (call !== syncs) return;
   theme = resolved;
+  if (!isOpen) {
+    ticker?.cancel();
+    ticker = undefined;
+  } else ticker ??= $.clock.every(1000, () => void tick($));
   if (!isShown) {
     animation?.cancel();
     animation = undefined;
@@ -757,7 +764,6 @@ const setBand = async ($: EngineInterface, value: BandStyle) => {
 };
 
 const tick = async ($: EngineInterface) => {
-  if (!(await isPaneOpen($))) return;
   const at = await $.clock.now();
   await update($, now, () => at);
 };
@@ -808,7 +814,6 @@ const startSession = async (
   isStill = (await $.config.list()).some(
     (row) => row.key === "reduceMotion" && row.value === true,
   );
-  $.clock.every(1000, () => void tick($));
   // A reload cancels the old timers: drop a notice left up, re-arm warming
   // and animate a pane left open.
   await update($, notice, () => null);

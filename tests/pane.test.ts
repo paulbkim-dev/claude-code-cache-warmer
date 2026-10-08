@@ -58,6 +58,33 @@ test(
 );
 
 test(
+  "the open pane counts down each second, and reopening shows the time that passed while it was closed",
+  { options: { ttl: "5m" } },
+  async ($, on) => {
+    const { clock, prompt } = world(on);
+    await start($);
+    await prompt($, "t1");
+    await toggle($);
+    const pane = await mountPane($, "terminal");
+    const next = /^Next refresh in /;
+    expect((await pane.find({ text: next }))?.text).toStartWith(
+      "Next refresh in 4m30s ",
+    );
+    await clock.advance(1000);
+    expect((await pane.find({ text: next }))?.text).toStartWith(
+      "Next refresh in 4m29s ",
+    );
+    expect((await toggle($)).text).toBe("Cache warmer closed.");
+    await clock.advance(9000);
+    await toggle($);
+    expect((await pane.find({ text: next }))?.text).toStartWith(
+      "Next refresh in 4m20s ",
+    );
+    await pane.unmount();
+  },
+);
+
+test(
   "Clawd stands beside the menu in a wide pane, above it in a narrow tall one, and nowhere when rows run out",
   { options: { ttl: "5m" } },
   async ($, on) => {
