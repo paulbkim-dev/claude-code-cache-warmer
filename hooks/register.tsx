@@ -1137,11 +1137,18 @@ export const register: Register = (on, options) => {
     await forget($, "model switched");
     return next(e);
   });
-  on(
-    "ui.render",
-    { component: "AbovePrompt" },
-    async ($, e, next) => (await renderBand($, e)) ?? next(e),
-  );
+  on("ui.render", { component: "AbovePrompt" }, async ($, e, next) => {
+    const answer = await next(e);
+    if ("deny" in answer) return answer;
+    const band = await renderBand($, e);
+    if (!band) return answer;
+    return (
+      <>
+        {band}
+        {answer}
+      </>
+    );
+  });
   on("ui.render", { component: "Pane", requestId: PANE }, renderPane);
   on("ui.focus", { component: "Pane", requestId: PANE }, async ($, e, next) => {
     const answer = await next(e);

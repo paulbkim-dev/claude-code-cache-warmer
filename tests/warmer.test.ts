@@ -67,7 +67,9 @@ test(
     expect(forks).toHaveLength(1);
     expect(forks[0]).toMatch(/^\[cache-warmer\] /);
     const band = await mountBand($);
-    expect((await band.find({ text: /^☕ cache warmer / }))?.text).toBe(
+    expect(
+      (await band.find({ type: "Text", text: /^☕ cache warmer / }))?.text,
+    ).toBe(
       "☕ cache warmer 5m every 4m30s · Cache warmed · read 200.0k · $0.04 · saves $0.92 vs rewrite",
     );
     expect(await band.find({ type: "Raster" })).toBeDefined();
@@ -75,9 +77,9 @@ test(
     expect(appended[0]).toMatch(/^☕ 5m · Cache warmed · /);
     expect(logged).toEqual([]);
     await clock.advance(5000);
-    expect((await band.find({ text: /^☕ cache warmer / }))?.text).toMatch(
-      /· Cache warmed ·/,
-    );
+    expect(
+      (await band.find({ type: "Text", text: /^☕ cache warmer / }))?.text,
+    ).toMatch(/· Cache warmed ·/);
     expect(await band.find({ type: "Raster" })).toBeDefined();
     const painted = blits.length;
     await clock.advance(1000);
@@ -85,7 +87,9 @@ test(
     await clock.advance(264_000);
     expect(forks).toHaveLength(2);
     await prompt($, "t2");
-    expect(await band.find({ text: /^☕ cache warmer / })).toBeUndefined();
+    expect(
+      await band.find({ type: "Text", text: /^☕ cache warmer / }),
+    ).toBeUndefined();
     expect(await band.find({ text: "engine band" })).toBeDefined();
     await band.unmount();
   },
@@ -106,7 +110,9 @@ test(
     const expiresAt = new Date(START + 27.5 * MINUTE)
       .toTimeString()
       .slice(0, 5);
-    expect((await band.find({ text: /^☕ cache warmer / }))?.text).toBe(
+    expect(
+      (await band.find({ type: "Text", text: /^☕ cache warmer / }))?.text,
+    ).toBe(
       `☕ cache warmer 5m every 4m30s · Warming stopped · all 5 idle refreshes used · cache expires at ${expiresAt}`,
     );
     await band.unmount();
@@ -342,7 +348,9 @@ test(
     await prompt($, "t1");
     await clock.advance(270_000);
     const band = await mountBand($);
-    expect((await band.find({ text: /^☕ cache warmer / }))?.text).toBe(
+    expect(
+      (await band.find({ type: "Text", text: /^☕ cache warmer / }))?.text,
+    ).toBe(
       "☕ cache warmer 5m every 4m30s · Cache refresh failed · rate_limit 429 · read 0 · $0.00",
     );
     await band.unmount();

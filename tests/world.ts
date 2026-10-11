@@ -203,7 +203,7 @@ export const world = (
     logged.push(e.text);
     return { value: undefined };
   });
-  // The engine's own band, drawn when the mod has nothing to show.
+  // The engine's own band, also drawn alongside the mod's notice.
   on("ui.render", { component: "AbovePrompt" }, ($, e) => {
     const { Text } = $.ui.resolve(e);
     // SAFETY: h of a Text element with one string child draws that element.
