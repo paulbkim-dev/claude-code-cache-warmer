@@ -199,9 +199,9 @@ const logDebug = async ($: EngineInterface, line: DebugLine) => {
   await debugWrites;
 };
 
-// SAFETY: only addToTotals and startSession write ALL_TIME_KEY, always as AllTime; the store's JSON round trip keeps it.
 // Totals stored before 0.14 lack the bridged and premium fields, which count from zero.
 const storedAllTime = async ($: EngineInterface) => {
+  // SAFETY: only addToAllTime and startSession write ALL_TIME_KEY, each an AllTime that the store's JSON round trip keeps; the spread below fills the fields that totals saved before 0.14 lack.
   const stored = (await $.store.get(ALL_TIME_KEY)) as AllTime | undefined;
   return stored && { ...ZERO_TOTALS, ...stored };
 };
@@ -628,6 +628,15 @@ const settle = async (
   await chain($, current, entry, phase);
 };
 
+// The fork rejects when the engine refuses to send it, as for a blocked model; no request went out.
+const sendFork = async ($: EngineInterface) => {
+  try {
+    return await $.model.fork({ prompt: FORK_PROMPT });
+  } catch (error) {
+    return error instanceof Error ? error : new Error(String(error));
+  }
+};
+
 const forkFor = async (
   $: EngineInterface,
   current: Anchor,
@@ -660,12 +669,7 @@ const forkFor = async (
     },
     "stays",
   );
-  // The fork rejects when the engine refuses to send it, as for a blocked model; no request went out.
-  const reply = await $.model
-    .fork({ prompt: FORK_PROMPT })
-    .catch((error: unknown) =>
-      error instanceof Error ? error : new Error(String(error)),
-    );
+  const reply = await sendFork($);
   if (reply instanceof Error) {
     await showNotice(
       $,
