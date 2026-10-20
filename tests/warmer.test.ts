@@ -433,3 +433,16 @@ test(
     expect(stored.get("allTime")).toMatchObject({ refreshes: 1 });
   },
 );
+
+test(
+  "a subagent's turn that starts while the session is idle keeps the idle limit",
+  { options: { ttl: "5m" } },
+  async ($, on) => {
+    const { clock, forks, prompt } = world(on);
+    await start($);
+    await prompt($, "t1");
+    await $.turn.start({ text: "x", turnId: "sub", agentId: "a1" });
+    await clock.advance(60 * MINUTE);
+    expect(forks).toHaveLength(5);
+  },
+);

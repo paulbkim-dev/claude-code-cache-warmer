@@ -945,6 +945,7 @@ const stepTurn = async function* (
 // The next prompt takes down an outcome held from before it; a refresh under
 // way, or a notice shown since, keeps its place. A held notice's timer finds it gone.
 const onTurnStart: Hook<"turn.start"> = async ($, e, next) => {
+  if (e.agentId !== undefined) return next(e);
   prompts += 1;
   const prompt = prompts;
   await update($, warming, (current): Warming => ({
