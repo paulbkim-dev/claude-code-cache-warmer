@@ -1,7 +1,5 @@
 import { expect, test } from "claude-code/testing";
 
-import type { AllTime } from "../types";
-
 import {
   MINUTE,
   OPUS,
@@ -171,45 +169,42 @@ test(
   },
 );
 
-test(
-  "analytics at 1h compare with a 5m cache: a gap the 1h cache bridged counts, its write premium is charged, and a kept prompt avoided a 5m rewrite",
-  async ($, on) => {
-    const since = Date.UTC(2026, 8, 1);
-    // Totals saved before 0.14 have no bridged or premium fields; they count from zero.
-    const { clock, prompt } = world(on, {}, [], {
-      allTime: {
-        since,
-        refreshes: 0,
-        costUsd: 0,
-        wastedUsd: 0,
-        kept: 0,
-        keptUsd: 0,
-      } as AllTime,
-    });
-    await start($);
-    // Each request writes 1k tokens at 1h: 1k * ($8 - $5) / 1M = $0.003 over a 5m write, three times.
-    await prompt($, "t1");
-    // 30 minutes later, before the 54m refresh: a 5m cache would have expired, so 199k * ($5 - $0.20) / 1M is bridged.
-    await clock.advance(30 * MINUTE);
-    await prompt($, "t2");
-    // One refresh at 54m keeps the cache for the prompt at 61m, which avoids the same $0.9552 at the 5m price.
-    await clock.advance(61 * MINUTE);
-    await prompt($, "t3");
-    const pane = await mountPane($, "terminal");
-    await pane.press({ key: "menu:analytics" });
-    for (const row of [
-      /^Refreshes +1 +1$/,
-      /^Prompts kept +1 +1$/,
-      /^Rewrites avoided +\$0\.96 +\$0\.96$/,
-      /^1h gaps bridged +\$0\.96 +\$0\.96$/,
-      /^1h write premium +\$0\.0090 +\$0\.0090$/,
-      // $0.9552 + $0.9552 - $0.0439 fee - $0.009 premium.
-      /^Net saved +\$1\.86 +\$1\.86$/,
-    ])
-      expect(await pane.find({ text: row })).toBeDefined();
-    await pane.unmount();
-  },
-);
+test("analytics at 1h compare with a 5m cache: a gap the 1h cache bridged counts, its write premium is charged, and a kept prompt avoided a 5m rewrite", async ($, on) => {
+  const since = Date.UTC(2026, 8, 1);
+  // Totals saved before 0.14 have no bridged or premium fields; they count from zero.
+  const { clock, prompt } = world(on, {}, [], {
+    allTime: {
+      since,
+      refreshes: 0,
+      costUsd: 0,
+      wastedUsd: 0,
+      kept: 0,
+      keptUsd: 0,
+    },
+  });
+  await start($);
+  // Each request writes 1k tokens at 1h: 1k * ($8 - $5) / 1M = $0.003 over a 5m write, three times.
+  await prompt($, "t1");
+  // 30 minutes later, before the 54m refresh: a 5m cache would have expired, so 199k * ($5 - $0.20) / 1M is bridged.
+  await clock.advance(30 * MINUTE);
+  await prompt($, "t2");
+  // One refresh at 54m keeps the cache for the prompt at 61m, which avoids the same $0.9552 at the 5m price.
+  await clock.advance(61 * MINUTE);
+  await prompt($, "t3");
+  const pane = await mountPane($, "terminal");
+  await pane.press({ key: "menu:analytics" });
+  for (const row of [
+    /^Refreshes +1 +1$/,
+    /^Prompts kept +1 +1$/,
+    /^Rewrites avoided +\$0\.96 +\$0\.96$/,
+    /^1h gaps bridged +\$0\.96 +\$0\.96$/,
+    /^1h write premium +\$0\.0090 +\$0\.0090$/,
+    // $0.9552 + $0.9552 - $0.0439 fee - $0.009 premium.
+    /^Net saved +\$1\.86 +\$1\.86$/,
+  ])
+    expect(await pane.find({ text: row })).toBeDefined();
+  await pane.unmount();
+});
 
 test(
   "the Debug mode item toggles in place; while on, a JSON line per refresh and per stop goes to the session's log",

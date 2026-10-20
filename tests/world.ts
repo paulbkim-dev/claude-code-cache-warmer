@@ -91,7 +91,7 @@ const stubConfig = (on: On, config: ConfigRow[]) => {
 
 // The mod's $.store, held in memory where a test can read it.
 // holdStoreSet makes the next store.set wait for `until`, then save, or fail when it rejects.
-const stubStore = (on: On, entries: Record<string, AllTime>) => {
+const stubStore = (on: On, entries: Record<string, Partial<AllTime>>) => {
   const stored = new Map<string, unknown>(Object.entries(entries));
   let held: (() => Promise<void>) | undefined;
   on("store.get", (_, e) => ({ value: stored.get(e.key) }));
@@ -176,7 +176,7 @@ export const world = (
   on: On,
   env: Record<string, string> = {},
   config: ConfigRow[] = [],
-  store: Record<string, AllTime> = {},
+  store: Record<string, Partial<AllTime>> = {},
 ) => {
   const clock = mock.clock(on, { now: START });
   mock.env(on, env);
