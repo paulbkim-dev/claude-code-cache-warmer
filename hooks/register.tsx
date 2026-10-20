@@ -58,6 +58,7 @@ import {
   missCostOf,
   noticeOf,
   outcomeOf,
+  premiumOf,
   promptTokensOf,
   usageOf,
 } from "./warmer";
@@ -199,8 +200,11 @@ const logDebug = async ($: EngineInterface, line: DebugLine) => {
 };
 
 // SAFETY: only addToTotals and startSession write ALL_TIME_KEY, always as AllTime; the store's JSON round trip keeps it.
-const storedAllTime = async ($: EngineInterface) =>
-  (await $.store.get(ALL_TIME_KEY)) as AllTime | undefined;
+// Totals stored before 0.14 lack the bridged and premium fields, which count from zero.
+const storedAllTime = async ($: EngineInterface) => {
+  const stored = (await $.store.get(ALL_TIME_KEY)) as AllTime | undefined;
+  return stored && { ...ZERO_TOTALS, ...stored };
+};
 
 const addToAllTime = async ($: EngineInterface, delta: Partial<Totals>) => {
   const next = addTotals(
@@ -909,16 +913,23 @@ const judgeChain = async (
   cacheRead: number,
 ) => {
   if (!previous) return;
+  const isRead = cacheRead >= previous.promptTokens / 2;
   const isKept =
-    previous.refreshes > 0 &&
-    at - previous.at > TTL_MS[previous.ttl] &&
-    cacheRead >= previous.promptTokens / 2;
-  const keptUsd = isKept
-    ? missCostOf(previous.model, cacheRead, previous.ttl)
-    : null;
+    previous.refreshes > 0 && at - previous.at > TTL_MS[previous.ttl] && isRead;
+  // Without this mod a 5m cache would have expired too, so a kept prompt avoided a 5m rewrite.
+  const keptUsd = isKept ? missCostOf(previous.model, cacheRead, "5m") : null;
   if (keptUsd !== null) await addToTotals($, { kept: 1, keptUsd });
   else if (previous.feeUsd > 0)
     await addToTotals($, { wastedUsd: previous.feeUsd });
+  const isBridged =
+    !isKept &&
+    isRead &&
+    previous.ttl === "1h" &&
+    at - previous.at > TTL_MS["5m"];
+  const bridgedUsd = isBridged
+    ? missCostOf(previous.model, cacheRead, "5m")
+    : null;
+  if (bridgedUsd !== null) await addToTotals($, { bridgedUsd });
 };
 
 const stepTurn = async function* (
@@ -936,6 +947,9 @@ const stepTurn = async function* (
   await update($, isLocked, () => true);
   const usage = usageOf(result.usage);
   await judgeChain($, before, at, usage.cacheRead);
+  const premiumUsd =
+    entryTtl === "1h" ? premiumOf(result.usage.model, usage) : null;
+  if (premiumUsd) await addToTotals($, { premiumUsd });
   // Refreshes that settled while this request ran came after it, so they start the new chain.
   const after = (await read($, warming)).anchor;
   const isSameChain = before !== null && after?.at === before.at;

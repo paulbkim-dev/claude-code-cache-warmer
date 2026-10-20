@@ -10,6 +10,7 @@ import {
   formatDuration,
   formatUsd,
   idleSpanOf,
+  netSavedOf,
 } from "./warmer";
 
 const TTLS = ["5m", "1h"] as const;
@@ -134,12 +135,15 @@ const ANALYTICS_ROWS: [label: string, valueOf: (totals: Totals) => string][] = [
   ["  no prompt followed", (totals) => formatUsd(totals.wastedUsd)],
   ["Prompts kept", (totals) => String(totals.kept)],
   ["Rewrites avoided", (totals) => formatUsd(totals.keptUsd)],
-  ["Net saved", (totals) => formatUsd(totals.keptUsd - totals.costUsd)],
+  ["1h gaps bridged", (totals) => formatUsd(totals.bridgedUsd)],
+  ["1h write premium", (totals) => formatUsd(totals.premiumUsd)],
+  ["Net saved", (totals) => formatUsd(netSavedOf(totals))],
 ];
 
 const BASIS_LINES = [
-  "A prompt is kept when it reads the cache after the point where, without refreshes, it would have expired.",
-  `Avoided = cached tokens read × (write − read price). API list prices (${PRICES_AS_OF}).`,
+  "Compared with Claude Code's 5-minute cache and no refreshes.",
+  "A prompt is kept when it reads the cache after the point where, without refreshes, it would have expired; a 1h gap is bridged when it reads a 1h cache after five minutes with no refresh.",
+  `Avoided and bridged = cached tokens read × (5m write − read price); premium = 1h cache writes × (1h − 5m write price). API list prices (${PRICES_AS_OF}).`,
 ];
 
 const analyticsPageOf = (

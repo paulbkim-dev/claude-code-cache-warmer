@@ -67,6 +67,8 @@ export const ZERO_TOTALS: Totals = {
   wastedUsd: 0,
   kept: 0,
   keptUsd: 0,
+  bridgedUsd: 0,
+  premiumUsd: 0,
 };
 
 const isPriceKey = (id: string): id is keyof typeof PRICES =>
@@ -147,7 +149,13 @@ export const addTotals = <T extends Totals>(
   wastedUsd: base.wastedUsd + (delta.wastedUsd ?? 0),
   kept: base.kept + (delta.kept ?? 0),
   keptUsd: base.keptUsd + (delta.keptUsd ?? 0),
+  bridgedUsd: base.bridgedUsd + (delta.bridgedUsd ?? 0),
+  premiumUsd: base.premiumUsd + (delta.premiumUsd ?? 0),
 });
+
+// Analytics compare with Claude Code's 5-minute cache and no refreshes.
+export const netSavedOf = (totals: Totals) =>
+  totals.keptUsd + totals.bridgedUsd - totals.costUsd - totals.premiumUsd;
 
 // A timer that fires this late would likely find the entry expired and pay a full write.
 export const deadlineOf = (lastAt: number, ttl: Ttl) =>
@@ -165,6 +173,18 @@ export const costOf = (
       usage.cacheWrite * p.input * WRITE_MULTIPLIER[ttl] +
       usage.cacheRead * p.cacheRead +
       usage.output * p.output) /
+    1_000_000
+  );
+};
+
+// What a 1h main-conversation request's cache writes cost over 5m ones.
+export const premiumOf = (model: string, usage: Usage): number | null => {
+  const p = rates(model, promptTokensOf(usage));
+  if (!p) return null;
+  return (
+    (usage.cacheWrite *
+      p.input *
+      (WRITE_MULTIPLIER["1h"] - WRITE_MULTIPLIER["5m"])) /
     1_000_000
   );
 };

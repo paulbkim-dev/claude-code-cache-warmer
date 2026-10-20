@@ -61,6 +61,10 @@ export type Totals = {
   wastedUsd: number;
   kept: number;
   keptUsd: number;
+  // 1h reads a 5m cache would have lost, with no refresh needed.
+  bridgedUsd: number;
+  // What 1h main-conversation cache writes cost over 5m ones.
+  premiumUsd: number;
 };
 
 // Totals across sessions, kept in $.store; `since` is when counting began, in epoch milliseconds.
