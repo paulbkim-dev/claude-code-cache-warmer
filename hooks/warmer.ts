@@ -12,6 +12,9 @@ const price = (input: number, cacheRead: number, output: number): Price => ({
   output,
 });
 
+// A model priced higher for a prompt over `upTo` tokens, counting input of every kind.
+type Tiered = { upTo: number; short: Price; long: Price };
+
 // USD per million tokens at standard rates, from https://platform.claude.com/docs/en/about-claude/pricing.
 // Cache writes cost 1.25x input for the 5-minute lifetime and 2x for the 1-hour lifetime.
 const PRICES = {
@@ -25,12 +28,21 @@ const PRICES = {
   "claude-opus-4-7": price(5, 0.5, 25),
   "claude-opus-4-6": price(5, 0.5, 25),
   "claude-opus-4-5": price(5, 0.5, 25),
+  "claude-opus-4-1": price(15, 1.5, 75),
+  "claude-opus-4": price(15, 1.5, 75),
   "claude-sonnet-5-5": price(2, 0.1, 10),
   "claude-sonnet-5": price(2, 0.2, 10),
   "claude-sonnet-4-6": price(3, 0.3, 15),
   "claude-sonnet-4-5": price(3, 0.3, 15),
+  "claude-sonnet-4": price(3, 0.3, 15),
+  "claude-haiku-5-5": {
+    upTo: 100_000,
+    short: price(0.1, 0.01, 0.5),
+    long: price(0.5, 0.05, 2.5),
+  },
   "claude-haiku-4-5": price(1, 0.1, 5),
-} satisfies Record<string, Price>;
+  "claude-3-5-haiku": price(0.8, 0.08, 4),
+} satisfies Record<string, Price | Tiered>;
 
 const WRITE_MULTIPLIER = { "5m": 1.25, "1h": 2 } satisfies Record<Ttl, number>;
 
@@ -60,14 +72,33 @@ export const ZERO_TOTALS: Totals = {
 const isPriceKey = (id: string): id is keyof typeof PRICES =>
   Object.hasOwn(PRICES, id);
 
-const rates = (model: string): Price | undefined => {
+// The model as the API, a gateway, Bedrock or Vertex names it: a Bedrock inference
+// profile (`us.anthropic.…-v1:0`), its ARN or Mantle's `anthropic.…`, and Vertex's `…@date`.
+// An application inference profile ARN does not name its model, so it has no price.
+const entryOf = (model: string): Price | Tiered | undefined => {
   const id = model
+    .replace(/^arn:aws[\w-]*:bedrock:[^/]*\//, "")
     .replace(/^(?:claude-gateway|anthropic)\//, "")
-    .replace(/\[\d+(?:k|m)\]$/, "");
+    .replace(/^(?:[a-z-]+\.)?anthropic\./, "")
+    .replace(/\[\d+(?:k|m)\]$/, "")
+    .replace(/-v\d+(?::\d+)?$/, "")
+    .replace(/@\d{8}$/, "");
   const key = isPriceKey(id)
     ? id
-    : id.match(/^(claude-[a-z]+-\d{1,2}(?:-\d{1,2})?)-\d{8}$/)?.[1];
+    : id.match(/^(claude-[a-z0-9-]+?)-\d{8}$/)?.[1];
   return key !== undefined && isPriceKey(key) ? PRICES[key] : undefined;
+};
+
+const priceAt = (entry: Price | Tiered, promptTokens: number): Price =>
+  "upTo" in entry
+    ? promptTokens > entry.upTo
+      ? entry.long
+      : entry.short
+    : entry;
+
+const rates = (model: string, promptTokens: number): Price | undefined => {
+  const entry = entryOf(model);
+  return entry && priceAt(entry, promptTokens);
 };
 
 // A fork that made a request; the other kind found nothing to fork.
@@ -127,7 +158,7 @@ export const costOf = (
   usage: Usage,
   ttl: Ttl,
 ): number | null => {
-  const p = rates(model);
+  const p = rates(model, promptTokensOf(usage));
   if (!p) return null;
   return (
     (usage.input * p.input +
@@ -144,7 +175,7 @@ export const missCostOf = (
   promptTokens: number,
   ttl: Ttl,
 ): number | null => {
-  const p = rates(model);
+  const p = rates(model, promptTokens);
   if (!p) return null;
   return Math.max(
     0,
@@ -163,7 +194,7 @@ export type Decision = {
   reason?: string;
 };
 
-const breakEvenOf = (
+const breakEvenAt = (
   p: Price,
   ttl: Ttl,
   probability: number,
@@ -177,6 +208,21 @@ const breakEvenOf = (
   );
 };
 
+// A tiered model breaks even in its short tier, or else just over it at the long tier's price.
+const breakEvenOf = (
+  entry: Price | Tiered,
+  ttl: Ttl,
+  probability: number,
+  outputTokens: number,
+): number | null => {
+  if (!("upTo" in entry))
+    return breakEvenAt(entry, ttl, probability, outputTokens);
+  const short = breakEvenAt(entry.short, ttl, probability, outputTokens);
+  if (short !== null && short <= entry.upTo) return short;
+  const long = breakEvenAt(entry.long, ttl, probability, outputTokens);
+  return long === null ? null : Math.max(long, entry.upTo + 1);
+};
+
 export const decide = (
   model: string,
   promptTokens: number,
@@ -184,9 +230,10 @@ export const decide = (
   phase: "run" | "idle",
   outputTokens: number,
 ): Decision | null => {
-  const p = rates(model);
+  const entry = entryOf(model);
   const missUsd = missCostOf(model, promptTokens, ttl);
-  if (!p || missUsd === null || promptTokens <= 0) return null;
+  if (!entry || missUsd === null || promptTokens <= 0) return null;
+  const p = priceAt(entry, promptTokens);
   const warmUsd =
     (promptTokens * p.cacheRead + outputTokens * p.output) / 1_000_000;
   const probability = phase === "idle" ? IDLE_CONTINUATION : 1;
@@ -194,7 +241,7 @@ export const decide = (
   const isWarm = expectedUsd >= MIN_SAVINGS_USD;
   const breakEven = isWarm
     ? null
-    : breakEvenOf(p, ttl, probability, outputTokens);
+    : breakEvenOf(entry, ttl, probability, outputTokens);
   const where = `${model} at ${ttl} (${phase})`;
   const reason = isWarm
     ? undefined
