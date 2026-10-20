@@ -935,7 +935,10 @@ const stepTurn = async function* (
       isStopped: false,
     },
   }));
-  await schedule($);
+  // A request that read and wrote no cache left nothing to keep warm: prompt caching is off, or the prompt is under the model's minimum.
+  if (usage.cacheRead + usage.cacheWrite === 0)
+    await stopChain($, at, "the last request cached nothing");
+  else await schedule($);
   return result;
 };
 

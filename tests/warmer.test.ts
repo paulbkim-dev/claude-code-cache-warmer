@@ -164,6 +164,23 @@ test(
 );
 
 test(
+  "a request that cached nothing, as with prompt caching off, gets no refresh, and the pane says why",
+  { options: { ttl: "5m" } },
+  async ($, on) => {
+    const { clock, forks, prompt } = world(on);
+    await start($);
+    await prompt($, "t1", { ...turnUsage(OPUS, 0, 0), input_tokens: 200_000 });
+    await clock.advance(30 * MINUTE);
+    expect(forks).toHaveLength(0);
+    const pane = await mountPane($, "terminal");
+    expect(
+      await pane.find({ text: /^Stopped: the last request cached nothing\./ }),
+    ).toBeDefined();
+    await pane.unmount();
+  },
+);
+
+test(
   "a small idle prompt is not worth a refresh, and the pane says why",
   { options: { ttl: "5m" } },
   async ($, on) => {
