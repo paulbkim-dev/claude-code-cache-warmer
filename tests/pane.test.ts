@@ -90,7 +90,7 @@ test(
   async ($, on) => {
     const { prompt } = world(on);
     await start($);
-    await prompt($, "t1", turnUsage(SONNET, 299_000, 1000));
+    await prompt($, "t1", turnUsage(SONNET, 149_000, 1000));
     await toggle($);
     // At 60 columns 30 stay beside Clawd, who needs his seven rows; the column beside him scrolls.
     // At 59 Clawd and a blank row stand above the seven rows of the header and menu and the reason's three rows.
@@ -104,7 +104,7 @@ test(
     ] as const) {
       const pane = await mountPane($, "terminal", { columns, bodyRows });
       expect(
-        await pane.find({ text: /^Stopped: 300\.0k tokens/ }),
+        await pane.find({ text: /^Stopped: 150\.0k tokens/ }),
       ).toBeDefined();
       expect((await pane.find({ type: "Raster" })) !== undefined).toBe(
         direction !== undefined,

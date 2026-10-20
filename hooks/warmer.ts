@@ -2,7 +2,7 @@ import type { ConfigValue, ModelForkResult, ModelUsage } from "claude-code";
 
 import type { Notice, Refresh, Totals, Ttl, Usage } from "../types";
 
-export const PRICES_AS_OF = "2026-10-04";
+export const PRICES_AS_OF = "2026-10-20";
 
 type Price = { input: number; cacheRead: number; output: number };
 
@@ -25,7 +25,7 @@ const PRICES = {
   "claude-opus-4-7": price(5, 0.5, 25),
   "claude-opus-4-6": price(5, 0.5, 25),
   "claude-opus-4-5": price(5, 0.5, 25),
-  "claude-sonnet-5-5": price(2, 0.2, 10),
+  "claude-sonnet-5-5": price(2, 0.1, 10),
   "claude-sonnet-5": price(2, 0.2, 10),
   "claude-sonnet-4-6": price(3, 0.3, 15),
   "claude-sonnet-4-5": price(3, 0.3, 15),

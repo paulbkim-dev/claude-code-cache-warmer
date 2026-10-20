@@ -25,13 +25,13 @@ test("the refresh decision follows Pi: idle prompts need 15% odds to clear $0.05
   expect(idle?.isWarm).toBe(true);
   // 50k tokens: 0.15 * $0.24 - $0.014 = $0.022 idle, below the threshold; $0.226 while a turn runs.
   expect(decide(OPUS, 50_000, "5m", "idle", 200)?.isWarm).toBe(false);
-  // Break-even sizes solved by hand: Opus 5.5 idle (54,000 / 0.52 per token) and Sonnet 5.5 idle (52,000 / 0.145).
+  // Break-even sizes solved by hand: Opus 5.5 idle (54,000 / 0.52 per token) and Sonnet 5.5 idle (52,000 / 0.26).
   expect(idle?.reason).toBeUndefined();
   expect(decide(OPUS, 50_000, "5m", "idle", 200)?.reason).toBe(
     "50.0k tokens is below the 103.8k break-even on claude-opus-5-5 at 5m (idle)",
   );
-  expect(decide(SONNET, 300_000, "5m", "idle", 200)?.reason).toBe(
-    "300.0k tokens is below the 358.6k break-even on claude-sonnet-5-5 at 5m (idle)",
+  expect(decide(SONNET, 150_000, "5m", "idle", 200)?.reason).toBe(
+    "150.0k tokens is below the 200.0k break-even on claude-sonnet-5-5 at 5m (idle)",
   );
   near(decide(OPUS, 50_000, "5m", "run", 200)?.expectedUsd, 0.226);
   // A 1h rewrite costs 2x input: 200k * $8 / 1M = $1.60.
@@ -175,7 +175,7 @@ test(
     const pane = await mountPane($, "terminal");
     expect(
       await pane.find({
-        text: /^Stopped: 20\.0k tokens is below the 24\.8k break-even on claude-sonnet-5-5 at 5m \(run\)\./,
+        text: /^Stopped: 20\.0k tokens is below the 22\.6k break-even on claude-sonnet-5-5 at 5m \(run\)\./,
       }),
     ).toBeDefined();
     await pane.unmount();
