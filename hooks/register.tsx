@@ -656,7 +656,26 @@ const forkFor = async (
     },
     "stays",
   );
-  const reply = await $.model.fork({ prompt: FORK_PROMPT });
+  // The fork rejects when the engine refuses to send it, as for a blocked model; no request went out.
+  const reply = await $.model
+    .fork({ prompt: FORK_PROMPT })
+    .catch((error: unknown) =>
+      error instanceof Error ? error : new Error(String(error)),
+    );
+  if (reply instanceof Error) {
+    await showNotice(
+      $,
+      {
+        ttl: current.ttl,
+        head: "Cache refresh refused",
+        detail: reply.message,
+        mood: "cold",
+      },
+      await outcomeEndingOf($),
+      prompt,
+    );
+    return stopChain($, current.at, `refresh refused: ${reply.message}`);
+  }
   if (!reply.isAnswered && reply.reason === "nothing-to-fork") {
     await showNotice(
       $,

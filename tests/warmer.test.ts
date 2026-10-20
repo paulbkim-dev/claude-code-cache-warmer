@@ -446,3 +446,30 @@ test(
     expect(forks).toHaveLength(5);
   },
 );
+
+test(
+  "a fork the engine refuses to send stops warming and says why",
+  { options: { ttl: "5m" } },
+  async ($, on) => {
+    const { clock, forks, prompt, replies } = world(on);
+    await start($);
+    replies.push(new Error("model claude-opus-5-5 is blocked"));
+    await prompt($, "t1");
+    await clock.advance(30 * MINUTE);
+    expect(forks).toHaveLength(1);
+    const band = await mountBand($);
+    expect(
+      (await band.find({ type: "Text", text: /^☕ cache warmer / }))?.text,
+    ).toBe(
+      "☕ cache warmer 5m every 4m30s · Cache refresh refused · cache-warmer: $.model.fork: model claude-opus-5-5 is blocked",
+    );
+    await band.unmount();
+    const pane = await mountPane($, "terminal");
+    expect(
+      await pane.find({
+        text: /^Stopped: refresh refused: cache-warmer: \$\.model\.fork: model claude-opus-5-5 is blocked\./,
+      }),
+    ).toBeDefined();
+    await pane.unmount();
+  },
+);

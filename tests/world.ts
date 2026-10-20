@@ -126,13 +126,15 @@ const stubFiles = (on: On) => {
   return { files, writes };
 };
 
-// Forks answer WARMED unless a test queues replies; each prompt runs one turn of one step.
+// Forks answer WARMED unless a test queues replies; a queued Error is the engine refusing to send the fork. Each prompt runs one turn of one step.
 const stubTurns = (on: On) => {
   const forks: string[] = [];
-  const replies: ModelForkResult[] = [];
+  const replies: (ModelForkResult | Error)[] = [];
   on("model.fork", (_, e) => {
     forks.push(e.prompt);
-    return { value: replies.shift() ?? WARMED };
+    const reply = replies.shift() ?? WARMED;
+    if (reply instanceof Error) return { deny: reply.message };
+    return { value: reply };
   });
   let next: TurnUsage = turnUsage(OPUS, 199_000, 1000);
   on("turn.step", async function* (_, e) {
