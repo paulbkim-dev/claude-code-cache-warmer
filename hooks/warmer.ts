@@ -18,6 +18,8 @@ type Tiered = { upTo: number; short: Price; long: Price };
 // USD per million tokens at standard rates, from https://platform.claude.com/docs/en/about-claude/pricing.
 // Cache writes cost 1.25x input for the 5-minute lifetime and 2x for the 1-hour lifetime.
 const PRICES = {
+  "claude-fable-5-2": price(8, 0.2, 40),
+  "claude-mythos-5-2": price(8, 0.2, 40),
   "claude-fable-5-1": price(10, 0.25, 50),
   "claude-mythos-5-1": price(10, 0.25, 50),
   "claude-fable-5": price(10, 1, 50),
