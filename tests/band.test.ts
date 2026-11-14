@@ -42,7 +42,13 @@ test("disabling an active notice keeps the engine band visible", async ($, on) =
   expect(
     await band.find({ type: "Text", text: /^☕ cache warmer / }),
   ).toBeDefined();
-  await $.config.set({ key: "cache-warmer.band", value: "off" });
+  await $.config.set({
+    key: "cache-warmer.band",
+    value: "off",
+    previous: "default",
+    provider: { plugin: "cache-warmer", tier: "user" },
+    origin: { kind: "composer" },
+  });
   expect(
     await band.find({ type: "Text", text: /^☕ cache warmer / }),
   ).toBeUndefined();
@@ -115,7 +121,13 @@ test("the band button cycles default, simplified and off; simplified is one line
     await band.find({ type: "Text", text: /^☕ cache warmer / }),
   ).toBeUndefined();
   expect(await band.find({ text: "engine band" })).toBeDefined();
-  await $.config.set({ key: "cache-warmer.band", value: "default" });
+  await $.config.set({
+    key: "cache-warmer.band",
+    value: "default",
+    previous: "off",
+    provider: { plugin: "cache-warmer", tier: "user" },
+    origin: { kind: "composer" },
+  });
   expect(await band.find({ type: "Raster" })).toBeDefined();
   await band.unmount();
 });

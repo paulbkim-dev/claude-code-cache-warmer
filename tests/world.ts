@@ -186,7 +186,7 @@ export const world = (
   const envSets: [string, string | undefined][] = [];
   on("env.set", (_, e) => {
     envSets.push([e.name, e.value]);
-    return { value: undefined };
+    return { value: {} };
   });
   const configSets = stubConfig(on, config);
   on("command.register", () => ({ value: { command: "cache-warmer" } }));
@@ -197,7 +197,7 @@ export const world = (
   const appended: string[] = [];
   on("session.append", (_, e, next) => {
     const [part] = e.message.content;
-    if (part?.type === "text") appended.push(part.text);
+    if (part?.type === "text") appended.push(String(part.text));
     return next(e);
   });
   const logged: string[] = [];
@@ -270,6 +270,7 @@ export const mountBand = ($: Engine) =>
     component: "AbovePrompt",
     props: {
       hasSurvey: false,
+      isCollapsed: false,
       isWorking: false,
       maxRows: 12,
       bodyColumns: 120,
